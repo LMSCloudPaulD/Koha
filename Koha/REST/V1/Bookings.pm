@@ -102,6 +102,50 @@ sub add {
     };
 }
 
+=head3 add
+
+Controller function that handles adding a new booking
+
+=cut
+
+sub add_public {
+    my $c = shift->openapi->valid_input or return;
+
+    return try {
+        my $patron = $c->stash('koha.user');
+        if ( !$patron ) {
+            return $c->render( status => 403, openapi => { error => 'Unauthorized' } );
+        }
+
+        my $booking = Koha::Booking->new_from_api( { $c->req->json->%*, patron_id => $patron->borrowernumber } );
+        $booking->store;
+        $booking->discard_changes;
+        $c->res->headers->location( $c->req->url->to_string . q{/} . $booking->booking_id );
+        return $c->render(
+            status  => 201,
+            openapi => $c->objects->to_api($booking),
+        );
+    } catch {
+        if ( blessed $_ and $_->isa('Koha::Exceptions::Booking::Clash') ) {
+            return $c->render(
+                status  => 400,
+                openapi => { error => 'Booking would conflict' }
+            );
+        }
+
+        if ( blessed $_ and $_->isa('Koha::Exceptions::Object::DuplicateID') ) {
+            return $c->render(
+                status  => 409,
+                openapi => {
+                    error => 'Duplicate booking_id',
+                }
+            );
+        }
+
+        return $c->unhandled_exception($_);
+    };
+}
+
 =head3 update
 
 Controller function that handles updating an existing booking
@@ -126,6 +170,37 @@ sub update {
     };
 }
 
+=head3 update_public
+
+Controller function that handles updating an existing booking
+
+=cut
+
+sub update_public {
+    my $c = shift->openapi->valid_input or return;
+
+    my $patron = $c->stash('koha.user');
+
+    return $c->render( status => 403, openapi => { error => 'Unauthorized' } ) unless $patron;
+
+    my $booking = $c->objects->find_rs( Koha::Bookings->new, $c->param('booking_id') );
+
+    return $c->render_resource_not_found("Booking")
+        unless $booking;
+
+    return $c->render( status => 403, openapi => { error => 'Unauthorized' } )
+        unless $booking->patron_id eq $patron->borrowernumber;
+
+    return try {
+        $booking->set_from_api( { $c->req->json->%*, patron_id => $patron->borrowernumber } );
+        $booking->store();
+        $booking->discard_changes;
+        return $c->render( status => 200, openapi => $c->objects->to_api($booking) );
+    } catch {
+        $c->unhandled_exception($_);
+    };
+}
+
 =head3 delete
 
 Controller function that handles removing an existing booking
@@ -139,6 +214,35 @@ sub delete {
 
     return $c->render_resource_not_found("Booking")
         unless $booking;
+
+    return try {
+        $booking->delete;
+        return $c->render_resource_deleted;
+    } catch {
+        $c->unhandled_exception($_);
+    };
+}
+
+=head3 delete_public
+
+Controller function that handles removing an existing booking
+
+=cut
+
+sub delete_public {
+    my $c = shift->openapi->valid_input or return;
+
+    my $patron = $c->stash('koha.user');
+
+    return $c->render( status => 403, openapi => { error => 'Unauthorized' } ) unless $patron;
+
+    my $booking = Koha::Bookings->find( $c->param('booking_id') );
+
+    return $c->render_resource_not_found("Booking")
+        unless $booking;
+
+    return $c->render( status => 403, openapi => { error => 'Unauthorized' } )
+        unless $booking->patron_id eq $patron->borrowernumber;
 
     return try {
         $booking->delete;

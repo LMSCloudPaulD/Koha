@@ -122,6 +122,17 @@
                 <a href="/cgi-bin/koha/opac-shelves.pl?op=list">Lists</a></li>
             [% END %]
 
+            [% IF logged_in_user.bookings.count %]
+                [% IF ( bookingsview ) %]
+                    <li class="active">
+                [% ELSE %]
+                    <li>
+                [% END %]
+                <a href="/cgi-bin/koha/opac-bookings.pl">
+                    Bookings ([% logged_in_user.bookings.filter_by_active.count | html %])
+                </a></li>
+            [% END %]
+
             [% IF Koha.Preference( 'RoutingSerials' ) && logged_in_user && logged_in_user.get_routing_lists.count %]
                 [% IF ( routinglistsview ) %]
                     <li class="active">

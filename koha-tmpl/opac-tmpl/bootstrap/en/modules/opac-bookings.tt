@@ -1,0 +1,124 @@
+[% USE raw %]
+[% USE Asset %]
+[% USE Koha %]
+[% USE KohaDates %]
+[% USE Branches %]
+[% USE ItemTypes %]
+[% USE Price %]
+[% USE AuthorisedValues %]
+[% USE AdditionalContents %]
+[% SET OpacNav = AdditionalContents.get( location => "OpacNav", lang => lang, library => logged_in_user.branchcode || default_branch, blocktitle => 0 ) %]
+[% SET OpacNavBottom = AdditionalContents.get( location => "OpacNavBottom", lang => lang, library => logged_in_user.branchcode || default_branch, blocktitle => 0 ) %]
+[% SET OpacMySummaryNote = AdditionalContents.get( location => "OpacMySummaryNote", lang => lang, library => branchcode ) %]
+
+[% SET borrower_club_enrollments = logged_in_user.get_club_enrollments %]
+[% SET borrower_enrollable_clubs = logged_in_user.get_enrollable_clubs(1) %] <!-- 1 => OPAC -->
+
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Your library home &rsaquo; [% IF ( LibraryNameTitle ) %][% LibraryNameTitle | html %][% ELSE %]Koha online[% END %] catalog</title>
+[% INCLUDE 'doc-head-close.inc' %]
+[% Asset.css("css/overdrive.css") | $raw %]
+[% BLOCK cssinclude %][% END %]
+</head>
+[% INCLUDE 'bodytag.inc' bodyid='opac-user' bodyclass='scrollto' %]
+[% INCLUDE 'masthead.inc' %]
+
+[% SET booking_id = BOOKING.booking_id | html %]
+
+<div class="main">
+    [% WRAPPER breadcrumbs %]
+        [% WRAPPER breadcrumb_item %]
+            <a href="/cgi-bin/koha/opac-user.pl">[% INCLUDE 'patron-title.inc' patron = logged_in_user %]</a>
+        [% END %]
+        [% WRAPPER breadcrumb_item bc_active= 1 %]
+            <span>Your bookings</span>
+        [% END %]
+    [% END #/ WRAPPER breadcrumbs %]
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col col-lg-2 order-2 order-lg-1">
+                <div id="navigation">
+                    [% INCLUDE 'navigation.inc' IsPatronPage=1 %]
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-10 order-1 order-lg-2">
+                <div id="userbookings" class="maincontent">
+                    <h1>Your bookings</h1>
+                    <div class="toptabs">
+                        <ul class="nav nav-tabs" id="list-tabs">
+                            <li id="user-bookings-tab" class="nav-item">
+                                <a class="nav-link active" id="your-bookings" href="/cgi-bin/koha/opac-bookings.pl?op=list">Your bookings</a>
+                            </li>
+                        </ul>
+                    </div> <!-- /.toptabs -->
+                    <div class="tab-content">
+                        [% IF ( biblio.bookable_items.count ) %]
+                            <div id="toolbar" class="toolbar clearfix">
+                                <div class="list-actions">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-link"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#booking-add"
+                                    >
+                                        <i class="fa fa-fw fa-plus" aria-hidden="true"></i>&nbsp;New booking
+                                    </button>
+                                    [% PROCESS 'modals/booking.inc' action = 'add' %]
+                                </div> <!-- / .list-actions -->
+                            </div> <!-- / #toolbar -->
+                            <div id="bookings-timeline"></div>
+                        [% END %]
+                        [% PROCESS 'bookings-table.inc' %]
+                        [% PROCESS 'modals/booking.inc' action = 'change-pickup-location' %]
+                        [% PROCESS 'modals/booking.inc' action = 'cancel' %]
+                        <!--<table id="opac-user-bookings-table"></table>-->
+                    </div>
+                </div> <!-- /#userdetails -->
+            </div> <!-- /.col-10 -->
+        </div> <!-- /.row -->
+    </div> <!-- /.container-fluid -->
+</div> <!-- /#main -->
+
+[% INCLUDE 'opac-bottom.inc' %]
+[% BLOCK jsinclude %]
+    [% Asset.js("js/form-submit.js") | $raw %]
+    [% Asset.js("lib/vis-timeline/vis-timeline-graph2d.min.js") | $raw %]
+    [% INCLUDE 'calendar.inc' %]
+    [% INCLUDE 'datatables.inc' %]
+    [% INCLUDE 'js-date-format.inc' %]
+    [% INCLUDE 'select2.inc' %]
+    [% Asset.js("lib/dayjs/plugin/isSameOrAfter.js") | $raw %]
+    [% Asset.js("lib/dayjs/plugin/isSameOrBefore.js") | $raw %]
+    <script>dayjs.extend(window.dayjs_plugin_isSameOrAfter)</script>
+    <script>dayjs.extend(window.dayjs_plugin_isSameOrBefore)</script>
+    [% Asset.js("js/tables/bookings.js") %]
+    [% IF ( biblio ) %]
+        [% Asset.js("js/modals/booking.js") %]
+    [% END %]
+
+    <script>
+        $(document).ready(() => {
+            const dataTable = initBookingsTable();
+
+            [% IF ( biblio ) %]
+                initBookingsModal({ 
+                    patronId: "[% logged_in_user.borrowernumber %]", 
+                    patronCategoryId: "[% logged_in_user.categorycode %]"
+                }, {
+                    biblioIdSelector: "#booking-biblio-id",
+                    formSelector: "#booking-form-add",
+                    itemIdSelector: "#booking-item-id",
+                    modalSelector: "#booking-add",
+                    periodPickerSelector: "#booking-period",
+                    startDateSelector: "#booking-start-date",
+                    endDateSelector: "#booking-end-date",
+                    pickupLibraryIdSelector: "#booking-pickup-library-id",
+                },
+                dataTable
+                );
+            [% END %]
+        });
+    </script>
+
+[% END %]

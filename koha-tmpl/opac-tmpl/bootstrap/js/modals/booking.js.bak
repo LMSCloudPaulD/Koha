@@ -1,0 +1,215 @@
+function initBookingsModal(patronId) {
+    const bookingBiblioId = $("#booking-biblio-id").val();
+    const biblioBookableItems = $.ajax({
+        url: `/api/v1/public/biblios/${bookingBiblioId}/items`,
+        data: { bookable: 1, _per_page: -1 },
+    });
+
+    biblioBookableItems
+        .done(biblioBookableItems => {
+            const availabilityPromises = biblioBookableItems.map(item =>
+                $.ajax({
+                    url: `/api/v1/public/checkouts/availability`,
+                    data: {
+                        patron_id: patronId,
+                        item_id: item.item_id,
+                    },
+                })
+            );
+
+            $.when(...availabilityPromises)
+                .done((...responses) => {
+                    console.log(responses);
+
+                    const biblioBookings = responses.initPeriodPicker(
+                        "#booking-period",
+                        biblioBookings,
+                        biblioBookableItems
+                    );
+
+                    initSelect2("#booking-pickup-library-id", {
+                        id: "library_id",
+                        text: "name",
+                        url: "/api/v1/public/libraries?_per_page=-1",
+                        wrapper: "#pickup-library-id-wrapper",
+                    });
+
+                    initSelect2("#booking-item-id", {
+                        id: "item_id",
+                        text: "external_id",
+                        url: `/api/v1/public/biblios/${bookingBiblioId}/items?_per_page=-1&bookable=1`,
+                        wrapper: "#item-id-wrapper",
+                    });
+                })
+                .fail((xhr, status, error) => {
+                    console.log("Availability fetch failed:", error);
+                });
+        })
+        .fail((xhr, status, error) => {
+            console.log("Bookable items fetch failed:", error);
+        });
+
+    $("#booking-form-add").on("submit", e => {
+        e.preventDefault();
+
+        const bookingAddForm = e.target;
+        const formData = new FormData(bookingAddForm);
+        $.ajax({
+            url: "/api/v1/public/bookings",
+            type: "POST",
+            dataType: "json",
+            data: JSON.stringify(
+                Array.from(formData).reduce((acc, [key, value]) => {
+                    acc[key] = value;
+                    return acc;
+                }, {})
+            ),
+            processData: false,
+            contentType: false,
+            success: response => {
+                $("#booking-pickup-library-id").val(null).trigger("change");
+                $("#booking-item-id").val(null).trigger("change");
+                $(bookingAddForm)
+                    .trigger("reset")
+                    .closest("#booking-add")
+                    .modal("hide");
+                $.ajax({
+                    url: `/api/v1/public/biblios/${bookingBiblioId}/bookings`,
+                    data: { _per_page: -1 },
+                    headers: { "x-koha-embed": "patron" },
+                });
+            },
+            error: (xhr, status, error) => {
+                $(bookingAddForm)
+                    .prepend(`<div class="alert alert-danger" role="alert">
+                    ${xhr.responseJSON.error}
+                </div>`);
+            },
+        });
+    });
+}
+
+function initPeriodPicker(selector, biblioBookings, biblioBookableItems) {
+    const periodPicker = $(selector).get(0)._flatpickr;
+    if (!periodPicker) {
+        return;
+    }
+
+    periodPicker.set("mode", "range");
+
+    let disableExists = periodPicker.config.disable.filter(
+        f => f.name === "dateDisable"
+    );
+    if (disableExists.length) {
+        return;
+    }
+
+    periodPicker.config.disable.push(function dateDisable(date) {
+        const periodPicker = $(selector).get(0)._flatpickr;
+        if (!periodPicker) {
+            return;
+        }
+
+        const startDateInput = $("#booking-start-date");
+        const endDateInput = $("#booking-end-date");
+        $(selector).on("change", function (e) {
+            const [startDate, endDate] = periodPicker.selectedDates;
+            startDateInput.val(dayjs(startDate).toISOString());
+            endDateInput.val(dayjs(endDate).toISOString());
+        });
+
+        const selectedDates = periodPicker.selectedDates;
+        const [start, end] = selectedDates;
+        if (start && !end && start > date) {
+            return true;
+        }
+
+        let unavailableItems = [],
+            booked = 0;
+        console.log(biblioBookings);
+        biblioBookings.forEach(booking => {
+            /*
+        if (booking_id && booking_id == booking.booking_id) {
+            return;
+        }
+        */
+
+            const start_date = flatpickr.parseDate(booking.start_date);
+            const end_date = flatpickr.parseDate(booking.end_date);
+            if (!start) {
+                return;
+            }
+
+            if (date >= start_date && date <= end_date) {
+                booked++;
+                if (booked === bookable) {
+                    return true;
+                }
+            }
+
+            const isStartInRange = start >= start_date && start <= end_date;
+            const isDateInRange = date >= start_date && date <= end_date;
+            const isDateSpanning = start <= start_date && date >= end_date;
+            if (!isStartInRange && !isDateInRange && !isDateSpanning) {
+                return;
+            }
+
+            if (
+                booking.item_id &&
+                !unavailableItems.includes(booking.item_id)
+            ) {
+                unavailableItems.push(booking.item_id);
+            }
+
+            if (!biblioBookings.includes(booking.booking_id)) {
+                biblioBookings.push(booking.booking_id);
+            }
+
+            const totalAvailable =
+                biblioBookableItems.length -
+                unavailableItems.length -
+                biblioBookings.length;
+            if (!totalAvailable) {
+                return true;
+            }
+        });
+    });
+}
+
+function initSelect2(selector, input) {
+    const $element = $(selector);
+    if (!$element) {
+        return;
+    }
+
+    $element.select2({
+        placeholder: "Please select an option",
+        dropdownParent: $(input.wrapper),
+        minimumResultsForSearch: 20,
+        width: "50%",
+        dropdownAutoWidth: true,
+        allowClear: true,
+        ajax: {
+            url: input.url,
+            data: function (params) {
+                const _params = { ...params, q: params.term };
+
+                delete _params._type;
+                delete _params.term;
+                return _params;
+            },
+            dataType: "json",
+            processResults: function (data) {
+                return {
+                    results: data.map(datum => ({
+                        id: datum[input.id],
+                        text: datum[input.text],
+                    })),
+                };
+            },
+            error: function (_, __, error) {
+                console.log("Error fetching data: ", error);
+            },
+        },
+    });
+}

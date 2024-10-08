@@ -1,0 +1,304 @@
+/**
+ * Class representing a modal for managing bookings.
+ */
+class BookingsModal {
+    constructor(patron = {}, selectors) {
+        this.patronId = patron.patronId;
+        this.patronCategoryId = patron.patronCategoryId;
+        this.selectors = selectors;
+        this.bookingBiblioId = document.querySelector(
+            this.selectors.biblioIdSelector
+        ).value;
+    }
+
+    /**
+     * Initializes the modal by setting up event listeners and loading data.
+     */
+    async init() {
+        try {
+            const bookableItems = await this.getBiblioBookableItems(
+                this.bookingBiblioId
+            );
+            const bookings = await this.getBiblioBookings(this.bookingBiblioId);
+
+            this.initPeriodPicker(bookings, bookableItems);
+
+            this.initSelect2(this.selectors.pickupLibraryIdSelector, {
+                id: "library_id",
+                text: "name",
+                url: "/api/v1/public/libraries?_per_page=-1",
+                wrapper: "#pickup-library-id-wrapper",
+            });
+
+            this.initSelect2(this.selectors.itemIdSelector, {
+                id: "item_id",
+                text: "external_id",
+                url: `/api/v1/public/biblios/${this.bookingBiblioId}/items?_per_page=-1&bookable=1`,
+                wrapper: "#item-id-wrapper",
+            });
+
+            document
+                .querySelector(this.selectors.formSelector)
+                .addEventListener("submit", this.handleSubmit.bind(this));
+
+            document
+                .querySelector(this.selectors.modalSelector)
+                .addEventListener("hidden.bs.modal", () =>
+                    this.handleClose(
+                        this.selectors.periodPickerSelector,
+                        this.selectors.pickupLibraryIdSelector,
+                        this.selectors.itemIdSelector
+                    )
+                );
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async getBiblioBookableItems(biblioId) {
+        const response = await fetch(
+            `/api/v1/public/biblios/${biblioId}/items`,
+            { params: { bookable: 1, _per_page: -1 } }
+        );
+        return response.json();
+    }
+
+    async getBiblioBookings(biblioId) {
+        const response = await fetch(
+            `/api/v1/public/biblios/${biblioId}/bookings`,
+            { params: { _per_page: -1 } }
+        );
+        return response.json();
+    }
+
+    initPeriodPicker(bookings, bookableItems) {
+        const periodPicker = document.querySelector(
+            this.selectors.periodPickerSelector
+        )._flatpickr;
+        if (!periodPicker) {
+            return;
+        }
+
+        periodPicker.set("mode", "range");
+
+        const disableExists = this.hasFunction(
+            periodPicker.config.disable,
+            "dateDisable"
+        );
+        if (!disableExists) {
+            periodPicker.config.disable.push(date => {
+                const selectedDates = periodPicker.selectedDates;
+                if (this.isBefore(date, selectedDates)) {
+                    return true;
+                }
+
+                let booked = 0;
+                const unavailableItems = [];
+                const biblioLevelBookings = [];
+                const [selectedStart] = selectedDates;
+                bookings.forEach(booking => {
+                    const bookingDates = this.parseBookingDates(booking);
+                    if (
+                        !selectedStart &&
+                        this.wouldClash(date, "overlap", bookingDates)
+                    ) {
+                        const selectedItem =
+                            document.getElementById("booking-item-id");
+                        const isSelectedItem = selectedItem === booking.item_id;
+                        if (isSelectedItem) {
+                            return true;
+                        }
+
+                        booked++;
+                        if (booked === bookableItems.length) {
+                            return true;
+                        }
+                    }
+
+                    const isUnavailable =
+                        this.wouldClash(
+                            selectedStart,
+                            "within",
+                            bookingDates
+                        ) ||
+                        this.wouldClash(date, "within", bookingDates) ||
+                        this.wouldClash(
+                            [selectedStart, date],
+                            "overlap",
+                            bookingDates
+                        );
+                    if (isUnavailable) {
+                        this.markAsUnavailable(
+                            booking,
+                            unavailableItems,
+                            biblioLevelBookings
+                        );
+                    }
+                });
+
+                return (
+                    this.calculateTotalAvailable(
+                        bookableItems,
+                        unavailableItems,
+                        biblioLevelBookings
+                    ) <= 0
+                );
+            });
+        }
+    }
+
+    hasFunction(object, functionName) {
+        return object.some(f => f.name === functionName);
+    }
+
+    isBefore(date, selectedDates) {
+        const [selectedStart] = selectedDates;
+        return selectedStart && selectedStart > date;
+    }
+
+    parseBookingDates(booking) {
+        return [
+            flatpickr.parseDate(booking.start_date),
+            flatpickr.parseDate(booking.end_date),
+        ];
+    }
+
+    wouldClash(datePair1, type, datePair2) {
+        const [startDate2, endDate2] = datePair2;
+        if (type === "within") {
+            return datePair1 >= startDate2 && datePair1 <= endDate2;
+        }
+
+        if (type === "overlap" && !Array.isArray(datePair1)) {
+            return datePair1 <= startDate2 && datePair1 >= endDate2;
+        }
+
+        const [startDate1, endDate1] = datePair1;
+        return startDate1 <= startDate2 && endDate1 >= endDate2;
+    }
+
+    calculateTotalAvailable(sum, ...minuends) {
+        return minuends.reduce(
+            (acc, minuend) => acc - minuend.length,
+            sum.length
+        );
+    }
+
+    markAsUnavailable(booking, unavailableItems, biblioLevelBookings) {
+        if (!booking.item_id) {
+            if (!biblioLevelBookings.includes(booking.booking_id)) {
+                biblioLevelBookings.push(booking.booking_id);
+            }
+        } else if (!unavailableItems.includes(booking.booking_id)) {
+            unavailableItems.push(booking.booking_id);
+        }
+    }
+
+    initSelect2(selector, options) {
+        const $element = $(selector);
+        if (!$element) {
+            return;
+        }
+
+        $element.select2({
+            placeholder: "Please select an option",
+            dropdownParent: $(options.wrapper),
+            minimumResultsForSearch: 20,
+            width: "50%",
+            dropdownAutoWidth: true,
+            allowClear: true,
+            ajax: {
+                url: options.url,
+                data(params) {
+                    const _params = { ...params, q: params.term };
+                    delete _params._type;
+                    delete _params.term;
+                    return _params;
+                },
+                dataType: "json",
+                processResults(data) {
+                    return {
+                        results: data.map(datum => ({
+                            id: datum[options.id],
+                            text: datum[options.text],
+                        })),
+                    };
+                },
+            },
+        });
+    }
+
+    async handleSubmit(e) {
+        e.preventDefault();
+        const bookingAddForm = e.target;
+        const formData = new FormData(bookingAddForm);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch("/api/v1/public/bookings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const errorResponse = await response.json();
+                throw new Error(errorResponse.error);
+            }
+
+            this.handleReset(bookingAddForm, this.selectors);
+
+            const updatedBookings = await fetch(
+                `/api/v1/public/biblios/${this.bookingBiblioId}/bookings?_per_page=-1`,
+                { headers: { "x-koha-embed": "patron" } }
+            );
+        } catch (error) {
+            bookingAddForm.insertAdjacentHTML(
+                "afterbegin",
+                `<div class="alert alert-danger" role="alert">${error.message}</div>`
+            );
+        }
+    }
+
+    handleReset(selector, ...rest) {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLFormElement)) {
+            return;
+        }
+
+        this.handleClose(...rest);
+
+        element.modal("hide");
+    }
+
+    handleClose(...selectors) {
+        selectors.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (!element) return;
+
+            if (selector.includes("period")) {
+                element._flatpickr.clear();
+            }
+
+            element.value = "";
+            element.dispatchEvent(new Event("change"));
+            element.innerHTML = "";
+            element.disabled = false;
+        });
+    }
+}
+
+/* 
+const modal = new BookingsModal(
+    { patronId: '123', patronCategoryId: '45' },
+    {
+        biblioIdSelector: '#biblio-id',
+        formSelector: '#booking-form',
+        itemIdSelector: '#item-id',
+        modalSelector: '#booking-modal',
+        periodPickerSelector: '#period-picker',
+        pickupLibraryIdSelector: '#pickup-library-id'
+    }
+);
+modal.init();
+*/

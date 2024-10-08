@@ -14,6 +14,13 @@
         Place recall</a></li>
     [% END %]
 
+    [% IF Koha.Preference('opacuserlogin') == 1 %]
+        [% IF ( biblio.bookable_items.count ) %]
+            <li><a class="booking btn btn-link btn-lg" href="/cgi-bin/koha/opac-bookings.pl?biblionumber=[% biblio.biblionumber | html %]"><i class="fa fa-solid fa-fw fa-calendar" aria-hidden="true"></i>
+            Place booking</a></li>
+        [% END %]
+    [% END %]
+
     <li><a class="print-large btn btn-link btn-lg" href="#"><i class="fa fa-fw fa-print" aria-hidden="true"></i> Print</a></li>
 
     [% IF Koha.Preference( 'opacuserlogin' ) == 1 %]

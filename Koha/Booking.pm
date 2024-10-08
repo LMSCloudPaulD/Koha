@@ -27,6 +27,8 @@ use Koha::Libraries;
 
 use C4::Letters;
 
+use List::Util qw( any );
+
 use base qw(Koha::Object);
 
 =head1 NAME
@@ -88,6 +90,31 @@ sub item {
     my $item_rs = $self->_result->item;
     return unless $item_rs;
     return Koha::Item->_new_from_dbic($item_rs);
+}
+
+=head3 status
+
+Returns the set or computed status
+
+'Cancelled' and 'completed' are final states. We compare the start and end dates on 'new'
+to compute the actual state that the booking is currently in.
+
+=cut
+
+sub status {
+    my ($self) = @_;
+
+    my $status = $self->_result->status;
+    return $status if any { $status eq $_ } qw(cancelled completed);
+
+    my $today      = dt_from_string;
+    my $start_date = dt_from_string( $self->start_date );
+    my $end_date   = dt_from_string( $self->end_date );
+    return 'expired' if $end_date < $today;
+    return 'pending' if $start_date > $today;
+    return 'active'  if $start_date <= $today and $end_date >= $today;
+
+    return $status;
 }
 
 =head3 store
@@ -231,6 +258,61 @@ Items that are not:
 sub get_items_that_can_fill {
     my ($self) = @_;
     return;
+}
+
+=head3 is_accessible
+
+    if ( $booking->is_accessible({ user => $logged_in_user }) ) { ... }
+
+This overloaded method validates whether the current I<Koha::Booking> object can be accessed
+by the logged in user.
+
+Returns 0 if the I<user> parameter is missing.
+
+=cut
+
+sub is_accessible {
+    my ( $self, $params ) = @_;
+
+    if ( !defined $params->{'user'} ) {
+        return 0;
+    }
+
+    if ( !$params->{'public'} ) {
+        return 1;
+    }
+
+    my $consumer = $params->{'user'};
+    return $self->patron_id eq $consumer->borrowernumber;
+}
+
+=head3 public_read_list
+
+This method returns the list of publicly readable database fields for both API and UI output purposes
+
+=cut
+
+sub public_read_list {
+    return [
+        'booking_id',        'patron_id',  'biblio_id', 'item_id',
+        'pickup_library_id', 'start_date', 'end_date',  'status',
+        'creation_date',
+    ];
+}
+
+=head3 unredact_list
+
+This method returns the list of database fields that should be visible, even for restricted users,
+for both API and UI output purposes
+
+=cut
+
+sub unredact_list {
+    return [
+        'booking_id', 'biblio_id', 'item_id',
+        'start_date', 'end_date',  'status',
+        'creation_date',
+    ];
 }
 
 =head3 to_api_mapping

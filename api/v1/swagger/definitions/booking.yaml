@@ -9,7 +9,9 @@ properties:
     type: object
   booking_id:
     description: Internal booking identifier
-    type: integer
+    type: 
+      - integer
+      - 'null'
   creation_date:
     description: Creation date and time of this booking
     readOnly: true
@@ -36,7 +38,9 @@ properties:
     type: string
   patron_id:
     description: Internal patron identifier
-    type: integer
+    type:
+      - integer
+      - 'null'
   patron:
     description: Embedable patron representation
     type:
@@ -44,7 +48,9 @@ properties:
       - 'null'
   pickup_library_id:
     description: Internal pickup_library identifier
-    type: string
+    type:
+      - string
+      - 'null'
   pickup_library:
     description: Embedable pickup_library representation
     type:
@@ -58,7 +64,7 @@ properties:
     description: Status of the booking
     type:
       - string
-      - "null"
+      - 'null'
 required:
   - biblio_id
   - item_id

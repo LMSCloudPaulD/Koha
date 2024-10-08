@@ -74,6 +74,7 @@
     "@babel/preset-env": "^7.16.11",
     "@rspack/cli": "^1.0.1",
     "@rspack/core": "^1.0.1",
+    "@types/jquery": "^3.5.31",
     "@vue/compiler-sfc": "^3.2.31",
     "babel-loader": "^8.2.3",
     "babelify": "^10.0.0",
