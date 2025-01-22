@@ -15,6 +15,7 @@
         type: string
         enum:
           - basket
+          - booking
           - credit
           - debit
           - invoice

@@ -19,9 +19,9 @@
         }
     }
 </style>
-</head>
+<!--</head>-->
 
-<body id="circ_request" class="catalog">
+<!--<body id="circ_request" class="catalog">-->
 
 [% WRAPPER 'header.inc' %]
     [% INCLUDE 'cat-search.inc' %]
@@ -246,7 +246,9 @@
                 "embed": [
                     "item",
                     "patron",
-                    "pickup_library"
+                    "pickup_library",
+                    "extended_attributes",
+                    "+strings"
                 ],
                 "columns": [{
                     "data": "booking_id",
@@ -348,7 +350,8 @@
                         return row.pickup_library.name;
                     }
                 },
-                {
+
+            {
                     "data": "start_date",
                     "title": _("Start date"),
                     "searchable": true,
@@ -365,6 +368,9 @@
                     "render": function(data, type, row, meta) {
                         return $date(row.end_date);
                     }
+                },
+                {
+                    "data": "extended_attributes"
                 },
                 {
                     "data": "",

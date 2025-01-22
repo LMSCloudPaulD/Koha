@@ -49,6 +49,11 @@
                                 <div class="hint">Select the booking start and end date</div>
                             </li>
                         </ol>
+                        <fieldset class="brief">
+                            <ol>
+                                <li id="booking_extended_attributes"></li>
+                            </ol>
+                        </fieldset>
                     </fieldset>
                 </div>
                 <!-- /.modal-body -->

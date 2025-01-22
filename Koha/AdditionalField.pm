@@ -62,6 +62,7 @@ sub to_api {
         'erm_licenses'        => 'license',
         'erm_agreements'      => 'agreement',
         'erm_packages'        => 'package',
+        'bookings'            => 'booking',
         'aqorders'            => 'order',
     };
 

@@ -47,6 +47,7 @@ use Koha::AuthorisedValues;
 use Koha::Biblios;
 use Koha::Biblio::ItemGroup::Items;
 use Koha::Biblio::ItemGroups;
+use Koha::Bookings;
 use Koha::CoverImages;
 use Koha::DateUtils;
 use Koha::ILL::Requests;

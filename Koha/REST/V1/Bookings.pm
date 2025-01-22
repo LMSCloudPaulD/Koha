@@ -102,6 +102,42 @@ sub add {
     };
 }
 
+sub add {
+    my $c = shift->openapi->valid_input or return;
+
+    return try {
+        my $body = $c->req->json;
+        my $extended_attributes = delete $body->{extended_attributes} // [];
+
+        my $booking = Koha::Booking->new_from_api($body)->store;
+
+        my @extended_attributes = map { {'id' => $_->{field_id}, 'value' => $_->{value}} } @{$extended_attributes};
+        $booking->extended_attributes(\@extended_attributes);
+
+        $c->res->headers->location($c->req->url->to_string . '/' . $booking->booking_id);
+        return $c->render(
+            status  => 201,
+            openapi => $c->objects->to_api($booking),
+        );
+    } catch {
+        if ( blessed $_ and $_->isa('Koha::Exceptions::Booking::Clash') ) {
+            return $c->render(
+                status  => 400,
+                openapi => { error => "Booking would conflict" }
+            );
+        } elsif ( blessed $_ and $_->isa('Koha::Exceptions::Object::DuplicateID') ) {
+            return $c->render(
+                status  => 409,
+                openapi => {
+                    error => "Duplicate booking_id",
+                }
+            );
+        }
+
+        return $c->unhandled_exception($_);
+    };
+}
+
 =head3 update
 
 Controller function that handles updating an existing booking
@@ -120,6 +156,29 @@ sub update {
         $booking->set_from_api( $c->req->json );
         $booking->store();
         $booking->discard_changes;
+        return $c->render( status => 200, openapi => $c->objects->to_api($booking) );
+    } catch {
+        $c->unhandled_exception($_);
+    };
+}
+
+sub update {
+    my $c = shift->openapi->valid_input or return;
+
+    my $booking = $c->objects->find_rs( Koha::Bookings->new, $c->param('booking_id') );
+
+    return $c->render_resource_not_found("Booking")
+        unless $booking;
+
+    return try {
+        my $body = $c->req->json;
+        my $extended_attributes = delete $body->{extended_attributes} // [];
+
+        $booking->set_from_api($body)->store;
+
+        my @extended_attributes = map { {'id' => $_->{field_id}, 'value' => $_->{value}} } @{$extended_attributes};
+        $booking->extended_attributes(\@extended_attributes);
+
         return $c->render( status => 200, openapi => $c->objects->to_api($booking) );
     } catch {
         $c->unhandled_exception($_);

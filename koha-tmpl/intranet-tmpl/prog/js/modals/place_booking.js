@@ -30,6 +30,10 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
     let biblionumber = button.data("biblionumber");
     $("#booking_biblio_id").val(biblionumber);
 
+    fetchExtendedAttributes("booking").then(response => {
+        renderExtendedAttributes(response);
+    });
+
     let patron_id = button.data("patron") || 0;
     let pickup_library_id = button.data("pickup_library");
     booking_item_id = button.data("itemnumber");
@@ -332,6 +336,9 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                 biblionumber +
                 "&_per_page=-1" +
                 '&q={"status":{"-in":["new","pending","active"]}}',
+            headers: {
+                "x-koha-embed": ["extended_attributes"],
+            },
             dataType: "json",
             type: "GET",
         });
@@ -1125,6 +1132,123 @@ function setFormValues(
     }
 }
 
+function getExtendedAttributes() {
+    let attributes = [];
+    $("#booking_extended_attributes input").each(function () {
+        let field_id = $(this)
+            .attr("name")
+            .match(/\[(.*?)\]/)[1];
+        let value = $(this).val();
+        if (value) {
+            attributes.push({
+                field_id: field_id,
+                value: value,
+            });
+        }
+    });
+    return attributes;
+}
+
+function fetchExtendedAttributes(resourceType) {
+    return $.ajax({
+        url: `/api/v1/extended_attribute_types?resource_type=${resourceType}`,
+        method: "GET",
+        dataType: "json",
+        error: function (xhr, status, error) {
+            console.error("Failed to fetch extended attributes: ", error);
+        },
+    });
+}
+
+function renderExtendedAttributes(attributes) {
+    const container = $("#booking_extended_attributes");
+    container.empty();
+
+    attributes.forEach(attr => {
+        const fieldId = `extended_attribute_${attr.extended_attribute_type_id}`;
+        const fieldName = `extended_attributes[${attr.extended_attribute_type_id}]`;
+
+        if (attr.repeatable) {
+            container.append(
+                createRepeatableField(attr.name, fieldId, fieldName)
+            );
+            return;
+        }
+
+        if (attr.authorised_value_category_name) {
+            const optionsHTML = createOptionsHTML(
+                attr.authorised_value_category_name
+            );
+            container.append(
+                createSelectField(attr.name, fieldId, fieldName, optionsHTML)
+            );
+            return;
+        }
+
+        container.append(createTextField(attr.name, fieldId, fieldName));
+    });
+
+    container.on("click", ".add-repeatable", handleRepeatableClick);
+}
+
+function createRepeatableField(label, fieldId, fieldName) {
+    return `
+        <li>
+            <label for="${fieldId}">${label}:</label>
+            <div class="d-flex">
+                <input type="text" name="${fieldName}[]" id="${fieldId}" class="extended-attribute" value="">
+                <a href="#" class="btn btn-sm btn-link add-repeatable" data-attribute-id="${fieldId}"><i class="fa fa-plus"></i>Add</a>
+            </div>
+            <div class="hint">Add multiple values if needed</div>
+        </li>`;
+}
+
+function createSelectField(label, fieldId, fieldName, optionsHTML) {
+    return `
+        <li>
+            <label for="${fieldId}">${label}:</label>
+            <select name="${fieldName}" id="${fieldId}" class="extended-attribute">
+                ${optionsHTML}
+            </select>
+        </li>`;
+}
+
+function createTextField(label, fieldId, fieldName) {
+    return `
+        <li>
+            <label for="${fieldId}">${label}:</label>
+            <input type="text" name="${fieldName}" id="${fieldId}" class="extended-attribute" value="">
+        </li>`;
+}
+
+function createOptionsHTML(categoryName) {
+    const options = getAuthorizedValues(categoryName);
+    return options
+        .map(
+            option => `<option value="${option.value}">${option.label}</option>`
+        )
+        .join("");
+}
+
+function handleRepeatableClick(e) {
+    e.preventDefault();
+    const attributeId = $(this).data("attribute-id");
+    const newField = `
+        <li class="mb-3">
+            <label for="${attributeId}">Repeat:</label>
+            <input type="text" name="${attributeId}[]" class="extended-attribute" value="">
+        </li>`;
+    $(this).closest("li").after(newField);
+}
+
+// Placeholder function to fetch authorized values
+function getAuthorizedValues(categoryName) {
+    return [
+        { value: "val1", label: "Option 1" },
+        { value: "val2", label: "Option 2" },
+    ];
+}
+
 $("#placeBookingForm").on("submit", function (e) {
     e.preventDefault();
 
@@ -1146,6 +1270,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
+                extended_attributes: getExtendedAttributes(),
             })
         );
 
@@ -1215,6 +1340,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
+                extended_attributes: getExtendedAttributes(),
             }),
         });
 
