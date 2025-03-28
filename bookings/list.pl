@@ -24,8 +24,6 @@ use CGI qw ( -utf8 );
 use C4::Output qw( output_html_with_http_headers );
 use C4::Auth   qw( get_template_and_user );
 
-use Koha::AdditionalFields;
-
 my $input = CGI->new;
 my ( $template, $borrowernumber, $cookie, $flags ) = get_template_and_user(
     {
@@ -38,20 +36,11 @@ my ( $template, $borrowernumber, $cookie, $flags ) = get_template_and_user(
 
 my $biblionumber = $input->param('biblionumber');
 my $biblio       = Koha::Biblios->find($biblionumber);
-my $bookings     = Koha::Bookings->search( { biblio_id => $biblio->biblionumber } );
-
-use Data::Dumper;
-my $test = Koha::AdditionalFields->search( { tablename => 'bookings' } )->as_list;
-foreach (@$test) {
-    warn Dumper $_->unblessed;
-}
 
 $template->param(
-    biblionumber                => $biblionumber,
-    biblio                      => $biblio,
-    additional_fields           => Koha::AdditionalFields->search( { tablename => 'bookings' } ),
-    additional_field_values     => { map { $_->booking_id => $_->get_additional_field_values_for_template } $bookings->as_list },
-    bookingsview                => 1,
+    biblionumber => $biblionumber,
+    biblio       => $biblio,
+    bookingsview => 1,
 );
 
 output_html_with_http_headers $input, $cookie, $template->output;

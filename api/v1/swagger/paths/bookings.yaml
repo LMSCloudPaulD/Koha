@@ -50,7 +50,6 @@
             - patron
             - pickup_library
             - extended_attributes
-            - +strings
         collectionFormat: csv
     produces:
       - application/json

@@ -95,6 +95,20 @@
                 dataType: 'json',
                 type: 'GET',
             });
+            var extended_attribute_types;
+            $.ajax({
+                url: '/api/v1/extended_attribute_types',
+                dataType: 'json',
+                type: 'GET',
+                data: {
+                    resource_type: "booking",
+                },
+            }).then(response => {
+                extended_attribute_types = response.reduce((accumulator, extended_attribute_type) => {
+                    accumulator[extended_attribute_type.extended_attribute_type_id] = extended_attribute_type.name;
+                    return accumulator;
+                }, {});
+            });
 
             $.when(items, bookings).then(
                 function(items, bookings){
@@ -248,7 +262,7 @@
                     "patron",
                     "pickup_library",
                     "extended_attributes",
-                    "+strings"
+                    "+strings",
                 ],
                 "columns": [{
                     "data": "booking_id",
@@ -370,7 +384,22 @@
                     }
                 },
                 {
-                    "data": "extended_attributes"
+                    "data": "extended_attributes",
+                    "title": _("Additional fields"),
+                    "searchable": false,
+                    "orderable": false,
+                    "render": function(data, type, row, meta) {
+                        if (!data || data.length === 0) return '';
+                        return data.map(attribute => {
+                            let name = extended_attribute_types[attribute.id] ?? attribute.id;
+                            let value = attribute.value;
+                            if (value.includes(';')) {
+                                value = value.split(';').join(', ');
+                            }
+
+                            return [name, value].join(": ");
+                        }).join('<br>');
+                    }
                 },
                 {
                     "data": "",
@@ -383,8 +412,29 @@
                         let is_cancelled = row.status === "cancelled";
                         [% IF CAN_user_circulate_manage_bookings %]
                         if (!is_cancelled) {
-                            result += '<button type="button" class="btn btn-default btn-xs edit-action" data-bs-toggle="modal" data-bs-target="#placeBookingModal" data-booking="%s" data-biblionumber="%s" data-itemnumber="%s" data-patron="%s" data-pickup_library="%s" data-start_date="%s" data-end_date="%s"><i class="fa fa-pencil" aria-hidden="true"></i> %s</button>'.format(row.booking_id, biblionumber, row.item_id,  row.patron_id, row.pickup_library_id, row.start_date, row.end_date, _("Edit"));
-                            result += '<button type="button" class="btn btn-default btn-xs cancel-action" data-bs-toggle="modal" data-bs-target="#cancelBookingModal" data-booking="%s"><i class="fa fa-trash" aria-hidden="true"></i> %s</button>'.format(row.booking_id, _("Cancel"));
+                            result += `
+                                <button type="button" class="btn btn-default btn-xs edit-action" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#placeBookingModal" 
+                                    data-booking="${row.booking_id}" 
+                                    data-biblionumber="${biblionumber}" 
+                                    data-itemnumber="${row.item_id}" 
+                                    data-patron="${row.patron_id}" 
+                                    data-pickup_library="${row.pickup_library_id}" 
+                                    data-start_date="${row.start_date}" 
+                                    data-end_date="${row.end_date}" 
+                                    ${row.extended_attributes.filter(attribute => attribute.record_id == row.booking_id)
+                                        .map(attribute => `data-extended_attribute="${attribute.field_id},${attribute.value}"`)
+                                        .join('')}>
+                                    <i class="fa fa-pencil" aria-hidden="true"></i> ${_("Edit")}
+                                </button>`;
+                            result += `
+                                <button type="button" class="btn btn-default btn-xs cancel-action" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#cancelBookingModal" 
+                                    data-booking="${row.booking_id}">
+                                    <i class="fa fa-trash" aria-hidden="true"></i> ${_("Cancel")}
+                                </button>`;
                         }
                         [% END %]
                         return result;

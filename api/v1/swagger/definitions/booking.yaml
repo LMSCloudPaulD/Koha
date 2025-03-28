@@ -1,5 +1,5 @@
 ---
-additionalProperties: false
+additionalProperties: true
 properties:
   biblio_id:
     description: Internal identifier for the parent bibliographic record
