@@ -1,3 +1,4 @@
+// @ts-check
 let dataFetched = false;
 let bookable_items,
     bookings,
@@ -1134,6 +1135,10 @@ function setFormValues(
     }
 }
 
+/**
+ * Retrieves extended attributes from the booking form.
+ * @returns {Array<{field_id: string, value: string}>} An array of objects containing field IDs and their corresponding values.
+ */
 const getExtendedAttributes = () => {
     const attributes = [];
     const inputs = document.querySelectorAll(
@@ -1141,8 +1146,15 @@ const getExtendedAttributes = () => {
     );
 
     inputs.forEach(input => {
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
         const name = input.name;
-        const field_id = name.match(/\[(\d+)\](\[.*\])?$/)[1];
+        const field_id = name.match(/\[(\d+)\](\[.*\])?$/)?.[1];
+        if (!field_id) {
+            return;
+        }
 
         // Handle repeatable fields
         if (name.endsWith("[]")) {
@@ -1174,15 +1186,25 @@ const getExtendedAttributes = () => {
     return attributes;
 };
 
+/**
+ * Fetches extended attributes from the server.
+ * @param {string} resourceType - The type of resource to fetch attributes for.
+ * @returns {Promise<Object[]>} A promise that resolves to an array of extended attribute types.
+ */
 async function fetchExtendedAttributes(resourceType) {
     try {
-        const response = await fetch(`/api/v1/extended_attribute_types`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            query: { resource_type: resourceType }
-        });
+        const response = await fetch(
+            [
+                "/api/v1/extended_attribute_types",
+                new URLSearchParams({ resource_type: resourceType }).toString(),
+            ].join("?"),
+            {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1194,6 +1216,11 @@ async function fetchExtendedAttributes(resourceType) {
     }
 }
 
+/**
+ * Retrieves authorized values for a given category.
+ * @param {string} categoryName - The name of the category to fetch authorized values for.
+ * @returns {Promise<Object[]>} A promise that resolves to an array of authorized values.
+ */
 function getAuthorisedValues(categoryName) {
     return fetch(
         `/api/v1/authorised_value_categories/${categoryName}/authorised_values`
@@ -1210,14 +1237,27 @@ function getAuthorisedValues(categoryName) {
         });
 }
 
-function renderExtendedAttributes(attributes, existingValues = []) {
+/**
+ * Renders extended attributes in the booking form.
+ * @param {Array<Object>} attributes - The attributes to render.
+ * @param {string} [existingValues=""] - Existing values to populate the fields with.
+ */
+function renderExtendedAttributes(attributes, existingValues = "") {
     if (!attributes.length) {
         return;
     }
 
     const existingValue = existingValues.split(",");
     const container = document.getElementById("booking_extended_attributes");
+    if (!container) {
+        return;
+    }
+
     const loadingStateIndicator = renderExtendedAttributesHeader(container);
+    if (!loadingStateIndicator) {
+        return;
+    }
+
     const authorizedValuePromises = attributes
         .filter(attr => attr.authorised_value_category_name)
         .map(attr =>
@@ -1246,10 +1286,17 @@ function renderExtendedAttributes(attributes, existingValues = []) {
         })
         .catch(_ => {
             loadingStateIndicator.remove();
-            container.innerHtml = `<div class="alert alert-warning">Error loading additional fields</div>`;
+            container.innerHTML = `<div class="alert alert-warning">Error loading additional fields: ${_}</div>`;
         });
 }
 
+/**
+ * Renders a single extended attribute in the booking form.
+ * @param {Array<Object>} attributes - The attributes to render.
+ * @param {Object} authorizedValuesMap - A map of authorized values for the attributes.
+ * @param {HTMLElement} container - The container element to append the rendered attributes to.
+ * @param {Array<string>} [existingValue=[]] - Existing values to populate the fields with.
+ */
 function renderExtendedAttribute(
     attributes,
     authorizedValuesMap,
@@ -1259,48 +1306,89 @@ function renderExtendedAttribute(
     attributes.forEach(attribute => {
         const fieldId = `extended_attribute_${attribute.extended_attribute_type_id}`;
         const fieldName = `extended_attributes[${attribute.extended_attribute_type_id}]`;
-        const newFieldHTML = attribute.repeatable
-            ? renderRepeatableField(attribute.name, fieldId, fieldName)
-            : attribute.authorised_value_category_name
-              ? renderSelectableField(
-                    attribute.name,
-                    fieldId,
-                    fieldName,
-                    authorizedValuesMap[
-                        attribute.authorised_value_category_name
-                    ]
-                        .map(
-                            option =>
-                                `<option value="${option.value}">${option.description}</option>`
-                        )
-                        .join("")
+
+        if (attribute.repeatable) {
+            return appendField(
+                container,
+                renderRepeatableField(attribute.name, fieldId, fieldName)
+            );
+        }
+
+        if (attribute.authorised_value_category_name) {
+            const authorizedValues =
+                authorizedValuesMap[attribute.authorised_value_category_name];
+            const optionsHTML = authorizedValues
+                .map(
+                    authorizedValue =>
+                        `<option
+                        value="${authorizedValue.value}"
+                        ${attribute.value == authorizedValue.value ? "selected" : ""}>
+                            ${authorizedValue.description}
+                        </option>`
                 )
-              : renderField(
+                .join("");
+
+            return appendField(
+                container,
+                renderSelectableField(
                     attribute.name,
                     fieldId,
                     fieldName,
-                    existingValue[0] == attribute.extended_attribute_type_id
-                        ? existingValue[1]
-                        : []
-                );
+                    optionsHTML
+                )
+            );
+        }
 
-        console.log(newFieldHTML);
-
-        const newField = document.createElement("div");
-        newField.innerHTML = newFieldHTML;
-        newField.classList.add("fade", "show");
-        container.appendChild(newField);
+        const [existingValueId, existingValueValue] = existingValue;
+        const isExtendedAttributeTypeId =
+            attribute.extended_attribute_type_id == existingValueId;
+        appendField(
+            container,
+            renderField(
+                attribute.name,
+                fieldId,
+                fieldName,
+                isExtendedAttributeTypeId ? existingValueValue : ""
+            )
+        );
     });
 
     container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("add-repeatable")) {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        if (target.classList.contains("add-repeatable")) {
             handleRepeatableClick(e);
         }
     });
 }
 
+/**
+ * Appends HTML for an input field to the specified container.
+ * @param {HTMLElement} container - The container the HTML is appended to.
+ * @param {string} fieldHTML - The HTML that is appended to the specified container.
+ */
+function appendField(container, fieldHTML) {
+    const newField = document.createElement("div");
+    newField.innerHTML = fieldHTML;
+    newField.classList.add("fade", "show");
+    container.appendChild(newField);
+}
+
+/**
+ * Renders the header for the extended attributes section.
+ * @param {HTMLElement} container - The container element to insert the header into.
+ * @returns {HTMLElement | null} The loading state indicator element.
+ */
 function renderExtendedAttributesHeader(container) {
-    container.closest("ol").insertAdjacentHTML(
+    const orderedListElement = container.closest("ol");
+    if (!(orderedListElement instanceof HTMLOListElement)) {
+        return null;
+    }
+
+    orderedListElement.insertAdjacentHTML(
         "beforebegin",
         `
         <div class="d-flex" id="booking_extended_attributes_header">
@@ -1315,6 +1403,10 @@ function renderExtendedAttributesHeader(container) {
     const loadingStateIndicator = document.getElementById(
         "booking_extended_attributes_spinner"
     );
+    if (!loadingStateIndicator) {
+        return null;
+    }
+
     setTimeout(() => {
         loadingStateIndicator.classList.toggle("d-none");
     }, 50);
@@ -1322,6 +1414,13 @@ function renderExtendedAttributesHeader(container) {
     return loadingStateIndicator;
 }
 
+/**
+ * Renders a repeatable field in the booking form.
+ * @param {string} label - The label for the field.
+ * @param {string} fieldId - The ID for the field.
+ * @param {string} fieldName - The name for the field.
+ * @returns {string} The HTML string for the repeatable field.
+ */
 function renderRepeatableField(label, fieldId, fieldName) {
     return `
         <li>
@@ -1334,6 +1433,14 @@ function renderRepeatableField(label, fieldId, fieldName) {
         </li>`;
 }
 
+/**
+ * Renders a selectable field in the booking form.
+ * @param {string} label - The label for the field.
+ * @param {string} fieldId - The ID for the field.
+ * @param {string} fieldName - The name for the field.
+ * @param {string} optionsHTML - The HTML string for the options in the select field.
+ * @returns {string} The HTML string for the selectable field.
+ */
 function renderSelectableField(label, fieldId, fieldName, optionsHTML) {
     return `
         <li>
@@ -1345,7 +1452,15 @@ function renderSelectableField(label, fieldId, fieldName, optionsHTML) {
         </li>`;
 }
 
-function renderField(label, fieldId, fieldName, existingValue = []) {
+/**
+ * Renders a regular field in the booking form.
+ * @param {string} label - The label for the field.
+ * @param {string} fieldId - The ID for the field.
+ * @param {string} fieldName - The name for the field.
+ * @param {string} existingValue - Existing value to populate the field with.
+ * @returns {string} The HTML string for the regular field.
+ */
+function renderField(label, fieldId, fieldName, existingValue = "") {
     console.log("renderField", existingValue);
     return `
         <li>
@@ -1354,15 +1469,24 @@ function renderField(label, fieldId, fieldName, existingValue = []) {
         </li>`;
 }
 
+/**
+ * Handles the click event for adding repeatable fields.
+ * @param {Event} e - The click event.
+ */
 function handleRepeatableClick(e) {
     e.preventDefault();
-    const attributeId = e.target.dataset.attributeId;
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) {
+        return;
+    }
+
+    const attributeId = target.dataset.attributeId;
     const newField = `
         <li class="mb-3">
             <label for="${attributeId}">${__("Repeat")}:</label>
             <input type="text" name="${attributeId}[]" class="extended-attribute form-control form-control-sm w-50" value="">
         </li>`;
-    e.target.closest("li").insertAdjacentHTML("afterend", newField);
+    target.closest("li")?.insertAdjacentHTML("afterend", newField);
 }
 
 $("#placeBookingForm").on("submit", function (e) {
