@@ -19,9 +19,9 @@
         }
     }
 </style>
-<!--</head>-->
+</head>
 
-<!--<body id="circ_request" class="catalog">-->
+<body id="circ_request" class="catalog">
 
 [% WRAPPER 'header.inc' %]
     [% INCLUDE 'cat-search.inc' %]
@@ -81,7 +81,7 @@
         var update_success = 0;
         var bookings_table;
         var timeline;
-        let biblionumber = "[% biblionumber | uri %]";
+        let biblionumber = "[% biblio.biblionumber | uri %]";
         $(document).ready(function(){
 
             var items = $.ajax({
@@ -204,7 +204,7 @@
                             // set end datetime hours and minutes to the end of the day
                             let endDate = dayjs(data.end).endOf('day');
 
-                            $('#placeBookingModal').modal('show', $('<button data-booking="'+data.id+'"  data-biblionumber="[% biblionumber | uri %]"  data-itemnumber="'+data.group+'" data-patron="'+data.patron+'" data-pickup_library="'+data.pickup_library+'" data-start_date="'+startDate.toISOString()+'" data-end_date="'+endDate.toISOString()+'">'));
+                            $('#placeBookingModal').modal('show', $('<button data-booking="'+data.id+'"  data-biblionumber="[% biblio.biblionumber | uri %]"  data-itemnumber="'+data.group+'" data-patron="'+data.patron+'" data-pickup_library="'+data.pickup_library+'" data-start_date="'+startDate.toISOString()+'" data-end_date="'+endDate.toISOString()+'">'));
                             $('#placeBookingModal').on('hide.bs.modal', function(e) {
                                 if (update_success) {
                                     update_success = 0;

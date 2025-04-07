@@ -38,7 +38,6 @@ my $biblionumber = $input->param('biblionumber');
 my $biblio       = Koha::Biblios->find($biblionumber);
 
 $template->param(
-    biblionumber => $biblionumber,
     biblio       => $biblio,
     bookingsview => 1,
 );
