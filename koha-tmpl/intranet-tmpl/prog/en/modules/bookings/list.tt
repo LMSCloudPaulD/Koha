@@ -205,7 +205,14 @@
                             // set end datetime hours and minutes to the end of the day
                             let endDate = dayjs(data.end).endOf('day');
 
-                            $('#placeBookingModal').modal('show', $('<button data-booking="'+data.id+'"  data-biblionumber="[% biblio.biblionumber | uri %]"  data-itemnumber="'+data.group+'" data-patron="'+data.patron+'" data-pickup_library="'+data.pickup_library+'" data-start_date="'+startDate.toISOString()+'" data-end_date="'+endDate.toISOString()+'">'));
+                            // Get the current booking to preserve extended attributes
+                            let currentBooking = bookingsSet.get(data.id);
+                            let extendedAttributes = currentBooking.extended_attributes || [];
+
+                            $('#placeBookingModal').modal('show', $('<button data-booking="'+data.id+'"  data-biblionumber="[% biblio.biblionumber | uri %]"  data-itemnumber="'+data.group+'" data-patron="'+data.patron+'" data-pickup_library="'+data.pickup_library+'" data-start_date="'+startDate.toISOString()+'" data-end_date="'+endDate.toISOString()+'" data-extended_attributes=\''+JSON.stringify(extendedAttributes.map(attribute => ({
+                                field_id: attribute.field_id,
+                                value: attribute.value
+                            })))+'\'>'));
                             $('#placeBookingModal').on('hide.bs.modal', function(e) {
                                 if (update_success) {
                                     update_success = 0;
@@ -391,15 +398,17 @@
                     "orderable": false,
                     "render": function(data, type, row, meta) {
                         if (!data || data.length === 0) return '';
-                        return data.map(attribute => {
-                            let name = extended_attribute_types[attribute.id] ?? attribute.id;
-                            let value = attribute.value;
-                            if (value.includes(';')) {
-                                value = value.split(';').join(', ');
-                            }
-
-                            return [name, value].join(": ");
-                        }).join('<br>');
+                        return data
+                            .filter(attribute => attribute.record_id == row.booking_id)
+                            .map(attribute => {
+                                let name = extended_attribute_types[attribute.field_id] ?? attribute.field_id;
+                                let value = attribute.value;
+                                if (value.includes(';')) {
+                                    value = value.split(';').join(', ');
+                                }
+                                return [name, value].join(": ");
+                            })
+                            .join('<br>');
                     }
                 },
                 {
@@ -414,25 +423,30 @@
                         [% IF CAN_user_circulate_manage_bookings %]
                         if (!is_cancelled) {
                             result += `
-                                <button type="button" class="btn btn-default btn-xs edit-action" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#placeBookingModal" 
-                                    data-booking="${row.booking_id}" 
-                                    data-biblionumber="${biblionumber}" 
-                                    data-itemnumber="${row.item_id}" 
-                                    data-patron="${row.patron_id}" 
-                                    data-pickup_library="${row.pickup_library_id}" 
-                                    data-start_date="${row.start_date}" 
-                                    data-end_date="${row.end_date}" 
-                                    ${row.extended_attributes.filter(attribute => attribute.record_id == row.booking_id)
-                                        .map(attribute => `data-extended_attribute="${attribute.field_id},${attribute.value}"`)
-                                        .join('')}>
+                                <button type="button" class="btn btn-default btn-xs edit-action"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#placeBookingModal"
+                                    data-booking="${row.booking_id}"
+                                    data-biblionumber="${biblionumber}"
+                                    data-itemnumber="${row.item_id}"
+                                    data-patron="${row.patron_id}"
+                                    data-pickup_library="${row.pickup_library_id}"
+                                    data-start_date="${row.start_date}"
+                                    data-end_date="${row.end_date}"
+                                    data-extended_attributes='${JSON.stringify(row.extended_attributes
+                                        .filter(attribute => attribute.record_id == row.booking_id)
+                                        .map(attribute => ({
+                                            field_id: attribute.field_id,
+                                            value: attribute.value
+                                        })
+                                    ))}'
+                                >
                                     <i class="fa fa-pencil" aria-hidden="true"></i> ${_("Edit")}
                                 </button>`;
                             result += `
-                                <button type="button" class="btn btn-default btn-xs cancel-action" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#cancelBookingModal" 
+                                <button type="button" class="btn btn-default btn-xs cancel-action"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#cancelBookingModal"
                                     data-booking="${row.booking_id}">
                                     <i class="fa fa-trash" aria-hidden="true"></i> ${_("Cancel")}
                                 </button>`;

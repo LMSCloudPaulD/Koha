@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * AdditionalFields Module
  *
@@ -168,22 +166,150 @@ const AdditionalFields = (function () {
     }
 
     /**
-     * Set field values in the form
-     * @param {Object} values - Field values to set
+     * Set values for all extended attribute fields
+     * @param {Array<{field_id: number, value: string}>} values - Array of extended attribute values
      */
     function setValues(values) {
         const container = document.getElementById(config.containerId);
         if (!container) return;
 
-        Object.entries(values).forEach(([name, value]) => {
-            const input = container.querySelector(
-                `[name="${config.selectors.fieldPrefix}.${name}"]`
-            );
-            if (
-                input instanceof HTMLInputElement ||
-                input instanceof HTMLSelectElement
-            ) {
-                input.value = value;
+        // Group values by field_id to handle repeatable fields
+        const groupedValues = values.reduce((acc, { field_id, value }) => {
+            if (!acc[field_id]) {
+                acc[field_id] = [];
+            }
+            acc[field_id].push(value);
+            return acc;
+        }, {});
+
+        // Get all field types
+        const fieldTypes = Array.from(
+            container.querySelectorAll("li.form-group")
+        )
+            .map(li => {
+                const input = li.querySelector("input, select");
+                if (!input) return null;
+
+                const name = input.name.replace(
+                    `${config.selectors.fieldPrefix}.`,
+                    ""
+                );
+                const fieldId = parseInt(name.replace(/\[.*\]/, ""), 10);
+
+                return {
+                    fieldId,
+                    isRepeatable:
+                        li.querySelector(
+                            `.${config.selectors.repeatableFieldClass}`
+                        ) !== null,
+                    isAuthorizedValue: input.tagName === "SELECT",
+                    element: li,
+                };
+            })
+            .filter(Boolean);
+
+        // Set values for each field
+        fieldTypes.forEach(field => {
+            if (!field) return;
+
+            const { fieldId, isRepeatable, isAuthorizedValue, element } = field;
+            const values = groupedValues[fieldId] || [];
+
+            if (isRepeatable) {
+                const repeatableContainer = element.querySelector(
+                    `.${config.selectors.repeatableFieldClass}`
+                );
+                if (!repeatableContainer) return;
+
+                // Clear existing inputs
+                repeatableContainer.innerHTML = "";
+
+                // Create new inputs for each value
+                values.forEach((value, index) => {
+                    const input = createInput(
+                        {
+                            extended_attribute_type_id: fieldId,
+                            authorised_value_category_name: isAuthorizedValue
+                                ? element.querySelector("select")?.dataset
+                                      .category
+                                : null,
+                            repeatable: true,
+                            name: "",
+                            resource_type: "",
+                            marc_field: "",
+                            marc_field_mode: "",
+                            searchable: false,
+                        },
+                        value,
+                        index
+                    );
+                    if (input) repeatableContainer.appendChild(input);
+                });
+
+                // Add the "Add" button if it doesn't exist
+                if (!element.querySelector(".add-repeatable")) {
+                    const addButton = document.createElement("button");
+                    addButton.type = "button";
+                    addButton.className = "btn btn-sm btn-link add-repeatable";
+                    addButton.setAttribute(
+                        "data-attribute-id",
+                        `extended_attribute_${fieldId}`
+                    );
+
+                    const addIcon = document.createElement("i");
+                    addIcon.className = "fa fa-plus";
+                    addButton.appendChild(addIcon);
+
+                    const addText = document.createTextNode("Add");
+                    addButton.appendChild(addText);
+
+                    addButton.onclick = () => {
+                        const newInput = createInput(
+                            {
+                                extended_attribute_type_id: fieldId,
+                                authorised_value_category_name:
+                                    isAuthorizedValue
+                                        ? element.querySelector("select")
+                                              ?.dataset.category
+                                        : null,
+                                repeatable: true,
+                                name: "",
+                                resource_type: "",
+                                marc_field: "",
+                                marc_field_mode: "",
+                                searchable: false,
+                            },
+                            "",
+                            values.length
+                        );
+                        if (newInput) repeatableContainer.appendChild(newInput);
+                    };
+
+                    element.appendChild(addButton);
+                }
+            } else {
+                const input = element.querySelector("input, select");
+                if (!input) return;
+
+                if (isAuthorizedValue) {
+                    // For authorized value fields, we need to wait for the options to be loaded
+                    const category = input.dataset.category;
+                    if (category) {
+                        fetchAuthorizedValues(category).then(
+                            authorizedValues => {
+                                const option = authorizedValues.find(
+                                    av => av.value === values[0]
+                                );
+                                if (option) {
+                                    input.value = option.value;
+                                }
+                            }
+                        );
+                    }
+                } else {
+                    // For regular input fields
+                    input.value = values[0] || "";
+                }
             }
         });
     }
@@ -219,6 +345,11 @@ const AdditionalFields = (function () {
 
         const headerId = `${config.containerId}_header`;
         const spinnerId = `${config.containerId}_spinner`;
+
+        // Prevent rerendering the header
+        if (document.getElementById(headerId) !== null) {
+            return null;
+        }
 
         const headerDiv = document.createElement("div");
         headerDiv.className = "d-flex";
@@ -256,7 +387,7 @@ const AdditionalFields = (function () {
     /**
      * Render extended attributes in the form
      * @param {Array} types - Extended attribute types
-     * @param {Object} values - Current values
+     * @param {Array} values - Current values
      */
     function renderExtendedAttributes(types, values) {
         const container = document.getElementById(config.containerId);
@@ -278,9 +409,13 @@ const AdditionalFields = (function () {
         }
 
         types.forEach(type => {
-            const value = values
-                ? values[type.extended_attribute_type_id]
+            // Find the matching value object by comparing field_id with extended_attribute_type_id
+            const valueObj = values
+                ? values.find(
+                      v => v.field_id === type.extended_attribute_type_id
+                  )
                 : null;
+            const value = valueObj ? valueObj.value : null;
             const field = createField(type, value);
             if (field) container.appendChild(field);
         });
@@ -385,17 +520,28 @@ const AdditionalFields = (function () {
             defaultOption.textContent = __("Select an option");
             input.appendChild(defaultOption);
 
+            // Set the value before fetching authorized values
+            if (value) {
+                input.value = value;
+            }
+
             // Fetch and populate authorized values
             fetchAuthorizedValues(type.authorised_value_category_name).then(
                 values => {
-                    console.log(values);
                     values.forEach(val => {
                         const option = document.createElement("option");
                         option.value = val.value;
                         option.textContent = val.description;
-                        if (value === val.value) option.selected = true;
+                        if (value === val.value) {
+                            option.selected = true;
+                        }
                         input.appendChild(option);
                     });
+
+                    // Set the value again after options are populated
+                    if (value) {
+                        input.value = value;
+                    }
                 }
             );
         } else {

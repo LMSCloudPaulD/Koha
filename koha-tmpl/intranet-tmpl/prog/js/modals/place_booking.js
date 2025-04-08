@@ -48,7 +48,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
     booking_item_id = button.data("itemnumber");
     let start_date = button.data("start_date");
     let end_date = button.data("end_date");
-    let extended_attributes = button.data("extended_attribute");
+    let extended_attributes = button.data("extended_attributes");
 
     // Get booking id if this is an edit
     booking_id = button.data("booking");
@@ -1068,7 +1068,8 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                     booking_item_id,
                     start_date,
                     end_date,
-                    periodPicker
+                    periodPicker,
+                    extended_attributes
                 );
             },
             function (jqXHR, textStatus, errorThrown) {
@@ -1081,7 +1082,8 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
             booking_item_id,
             start_date,
             end_date,
-            periodPicker
+            periodPicker,
+            extended_attributes
         );
     }
 });
@@ -1144,6 +1146,11 @@ function setFormValues(
     // If passed an itemnumber, pre-select
     if (booking_item_id) {
         $("#booking_item_id").val(booking_item_id).trigger("change");
+    }
+
+    // If passed extended attributes, set them
+    if (extended_attributes) {
+        additionalFields.setValues(extended_attributes);
     }
 }
 
