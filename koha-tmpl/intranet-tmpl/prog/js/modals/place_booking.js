@@ -1,4 +1,3 @@
-// @ts-check
 let dataFetched = false;
 let bookable_items,
     bookings,
@@ -7,6 +6,19 @@ let bookable_items,
     booking_item_id,
     booking_patron,
     booking_itemtype_id;
+
+// Initialize AdditionalFields module
+const additionalFields = AdditionalFields.init({
+    containerId: 'booking_extended_attributes',
+    resourceType: 'booking',
+    selectors: {
+        headerId: 'booking_extended_attributes_header',
+        spinnerId: 'booking_extended_attributes_spinner',
+        repeatableFieldClass: 'repeatable-field',
+        inputClass: 'extended-attribute',
+        fieldPrefix: 'extended_attributes'
+    }
+});
 
 function containsAny(integers1, integers2) {
     // Create a hash set to store integers from the second array
@@ -49,8 +61,8 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
         $("#booking_id").val("");
     }
 
-    fetchExtendedAttributes("booking").then(response =>
-        renderExtendedAttributes(response, extended_attributes)
+    additionalFields.fetchExtendedAttributes("booking").then(response =>
+        additionalFields.renderExtendedAttributes(response, extended_attributes)
     );
 
     // Patron select2
@@ -1135,360 +1147,6 @@ function setFormValues(
     }
 }
 
-/**
- * Retrieves extended attributes from the booking form.
- * @returns {Array<{field_id: string, value: string}>} An array of objects containing field IDs and their corresponding values.
- */
-const getExtendedAttributes = () => {
-    const attributes = [];
-    const inputs = document.querySelectorAll(
-        "#booking_extended_attributes input, #booking_extended_attributes select"
-    );
-
-    inputs.forEach(input => {
-        if (!(input instanceof HTMLInputElement)) {
-            return;
-        }
-
-        const name = input.name;
-        const field_id = name.match(/\[(\d+)\](\[.*\])?$/)?.[1];
-        if (!field_id) {
-            return;
-        }
-
-        // Handle repeatable fields
-        if (name.endsWith("[]")) {
-            // Get all values for this field
-            const values = Array.from(
-                document.querySelectorAll(`input[name="${name}"]`)
-            )
-                .map(input => input.value)
-                .filter(Boolean);
-
-            if (values.length > 0) {
-                attributes.push({
-                    field_id: field_id,
-                    value: values.join(";"),
-                });
-            }
-        }
-        // Handle regular fields
-        else {
-            const value = input.value;
-            if (value) {
-                attributes.push({
-                    field_id: field_id,
-                    value: value,
-                });
-            }
-        }
-    });
-    return attributes;
-};
-
-/**
- * Fetches extended attributes from the server.
- * @param {string} resourceType - The type of resource to fetch attributes for.
- * @returns {Promise<Object[]>} A promise that resolves to an array of extended attribute types.
- */
-async function fetchExtendedAttributes(resourceType) {
-    try {
-        const response = await fetch(
-            [
-                "/api/v1/extended_attribute_types",
-                new URLSearchParams({ resource_type: resourceType }).toString(),
-            ].join("?"),
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error("Failed to fetch extended attributes: ", error);
-    }
-}
-
-/**
- * Retrieves authorized values for a given category.
- * @param {string} categoryName - The name of the category to fetch authorized values for.
- * @returns {Promise<Object[]>} A promise that resolves to an array of authorized values.
- */
-function getAuthorisedValues(categoryName) {
-    return fetch(
-        `/api/v1/authorised_value_categories/${categoryName}/authorised_values`
-    )
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .catch(error => {
-            console.error("Failed to fetch authorized values: ", error);
-            return [];
-        });
-}
-
-/**
- * Renders extended attributes in the booking form.
- * @param {Array<Object>} attributes - The attributes to render.
- * @param {string} [existingValues=""] - Existing values to populate the fields with.
- */
-function renderExtendedAttributes(attributes, existingValues = "") {
-    if (!attributes.length) {
-        return;
-    }
-
-    const existingValue = existingValues.split(",");
-    const container = document.getElementById("booking_extended_attributes");
-    if (!container) {
-        return;
-    }
-
-    const loadingStateIndicator = renderExtendedAttributesHeader(container);
-    if (!loadingStateIndicator) {
-        return;
-    }
-
-    const authorizedValuePromises = attributes
-        .filter(attr => attr.authorised_value_category_name)
-        .map(attr =>
-            getAuthorisedValues(attr.authorised_value_category_name).then(
-                values => ({ attr, values })
-            )
-        );
-
-    Promise.all(authorizedValuePromises)
-        .then(results => {
-            loadingStateIndicator.remove();
-            const authorizedValuesMap = results.reduce(
-                (map, { attr, values }) => {
-                    map[attr.authorised_value_category_name] = values;
-                    return map;
-                },
-                {}
-            );
-
-            renderExtendedAttribute(
-                attributes,
-                authorizedValuesMap,
-                container,
-                existingValue
-            );
-        })
-        .catch(_ => {
-            loadingStateIndicator.remove();
-            container.innerHTML = `<div class="alert alert-warning">Error loading additional fields: ${_}</div>`;
-        });
-}
-
-/**
- * Renders a single extended attribute in the booking form.
- * @param {Array<Object>} attributes - The attributes to render.
- * @param {Object} authorizedValuesMap - A map of authorized values for the attributes.
- * @param {HTMLElement} container - The container element to append the rendered attributes to.
- * @param {Array<string>} [existingValue=[]] - Existing values to populate the fields with.
- */
-function renderExtendedAttribute(
-    attributes,
-    authorizedValuesMap,
-    container,
-    existingValue = []
-) {
-    attributes.forEach(attribute => {
-        const fieldId = `extended_attribute_${attribute.extended_attribute_type_id}`;
-        const fieldName = `extended_attributes[${attribute.extended_attribute_type_id}]`;
-
-        if (attribute.repeatable) {
-            return appendField(
-                container,
-                renderRepeatableField(attribute.name, fieldId, fieldName)
-            );
-        }
-
-        if (attribute.authorised_value_category_name) {
-            const authorizedValues =
-                authorizedValuesMap[attribute.authorised_value_category_name];
-            const optionsHTML = authorizedValues
-                .map(
-                    authorizedValue =>
-                        `<option
-                        value="${authorizedValue.value}"
-                        ${attribute.value == authorizedValue.value ? "selected" : ""}>
-                            ${authorizedValue.description}
-                        </option>`
-                )
-                .join("");
-
-            return appendField(
-                container,
-                renderSelectableField(
-                    attribute.name,
-                    fieldId,
-                    fieldName,
-                    optionsHTML
-                )
-            );
-        }
-
-        const [existingValueId, existingValueValue] = existingValue;
-        const isExtendedAttributeTypeId =
-            attribute.extended_attribute_type_id == existingValueId;
-        appendField(
-            container,
-            renderField(
-                attribute.name,
-                fieldId,
-                fieldName,
-                isExtendedAttributeTypeId ? existingValueValue : ""
-            )
-        );
-    });
-
-    container.addEventListener("click", function (e) {
-        const target = e.target;
-        if (!(target instanceof HTMLElement)) {
-            return;
-        }
-
-        if (target.classList.contains("add-repeatable")) {
-            handleRepeatableClick(e);
-        }
-    });
-}
-
-/**
- * Appends HTML for an input field to the specified container.
- * @param {HTMLElement} container - The container the HTML is appended to.
- * @param {string} fieldHTML - The HTML that is appended to the specified container.
- */
-function appendField(container, fieldHTML) {
-    const newField = document.createElement("div");
-    newField.innerHTML = fieldHTML;
-    newField.classList.add("fade", "show");
-    container.appendChild(newField);
-}
-
-/**
- * Renders the header for the extended attributes section.
- * @param {HTMLElement} container - The container element to insert the header into.
- * @returns {HTMLElement | null} The loading state indicator element.
- */
-function renderExtendedAttributesHeader(container) {
-    const orderedListElement = container.closest("ol");
-    if (!(orderedListElement instanceof HTMLOListElement)) {
-        return null;
-    }
-
-    orderedListElement.insertAdjacentHTML(
-        "beforebegin",
-        `
-        <div class="d-flex" id="booking_extended_attributes_header">
-            <h2 class="fs-5 mt-3">${__("Extended Attributes")}</h2>
-            <div class="spinner-border text-primary d-none" id="booking_extended_attributes_spinner" role="status" style="display: none;">
-                <span class="visually-hidden">${__("Loading")}...</span>
-            </div>
-        </div>
-    `
-    );
-
-    const loadingStateIndicator = document.getElementById(
-        "booking_extended_attributes_spinner"
-    );
-    if (!loadingStateIndicator) {
-        return null;
-    }
-
-    setTimeout(() => {
-        loadingStateIndicator.classList.toggle("d-none");
-    }, 50);
-
-    return loadingStateIndicator;
-}
-
-/**
- * Renders a repeatable field in the booking form.
- * @param {string} label - The label for the field.
- * @param {string} fieldId - The ID for the field.
- * @param {string} fieldName - The name for the field.
- * @returns {string} The HTML string for the repeatable field.
- */
-function renderRepeatableField(label, fieldId, fieldName) {
-    return `
-        <li>
-            <label for="${fieldId}">${label}:</label>
-            <div class="d-flex">
-                <input type="text" name="${fieldName}[]" id="${fieldId}" class="extended-attribute form-control form-control-sm w-50" value="">
-                <button class="btn btn-sm btn-link add-repeatable" data-attribute-id="${fieldId}"><i class="fa fa-plus"></i>${__("Add")}</button>
-            </div>
-            <div class="hint">${__("Add multiple values if needed")}</div>
-        </li>`;
-}
-
-/**
- * Renders a selectable field in the booking form.
- * @param {string} label - The label for the field.
- * @param {string} fieldId - The ID for the field.
- * @param {string} fieldName - The name for the field.
- * @param {string} optionsHTML - The HTML string for the options in the select field.
- * @returns {string} The HTML string for the selectable field.
- */
-function renderSelectableField(label, fieldId, fieldName, optionsHTML) {
-    return `
-        <li>
-            <label for="${fieldId}">${label}:</label>
-            <select name="${fieldName}" id="${fieldId}" class="extended-attribute form-control form-control-sm w-50">
-                <option value="">${__("Select an option")}</option>
-                ${optionsHTML}
-            </select>
-        </li>`;
-}
-
-/**
- * Renders a regular field in the booking form.
- * @param {string} label - The label for the field.
- * @param {string} fieldId - The ID for the field.
- * @param {string} fieldName - The name for the field.
- * @param {string} existingValue - Existing value to populate the field with.
- * @returns {string} The HTML string for the regular field.
- */
-function renderField(label, fieldId, fieldName, existingValue = "") {
-    console.log("renderField", existingValue);
-    return `
-        <li>
-            <label for="${fieldId}">${label}:</label>
-            <input type="text" name="${fieldName}" id="${fieldId}" class="extended-attribute form-control form-control-sm w-50" value="${existingValue}">
-        </li>`;
-}
-
-/**
- * Handles the click event for adding repeatable fields.
- * @param {Event} e - The click event.
- */
-function handleRepeatableClick(e) {
-    e.preventDefault();
-    const target = e.target;
-    if (!(target instanceof HTMLElement)) {
-        return;
-    }
-
-    const attributeId = target.dataset.attributeId;
-    const newField = `
-        <li class="mb-3">
-            <label for="${attributeId}">${__("Repeat")}:</label>
-            <input type="text" name="${attributeId}[]" class="extended-attribute form-control form-control-sm w-50" value="">
-        </li>`;
-    target.closest("li")?.insertAdjacentHTML("afterend", newField);
-}
-
 $("#placeBookingForm").on("submit", function (e) {
     e.preventDefault();
 
@@ -1510,7 +1168,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
-                extended_attributes: getExtendedAttributes(),
+                extended_attributes: additionalFields.getValues(),
             })
         );
 
@@ -1580,7 +1238,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
-                extended_attributes: getExtendedAttributes(),
+                extended_attributes: additionalFields.getValues(),
             }),
         });
 
@@ -1667,7 +1325,6 @@ $("#placeBookingModal").on("hidden.bs.modal", function (e) {
     $("#booking_end_date").val("");
     $("#booking_id").val("");
 
-    // Reset extended attributes section
-    $("#booking_extended_attributes_header").remove();
-    $("#booking_extended_attributes").empty();
+    // Clear additional fields
+    additionalFields.clear();
 });
