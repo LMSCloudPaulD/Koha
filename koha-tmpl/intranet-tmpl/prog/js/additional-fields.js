@@ -346,19 +346,17 @@ const AdditionalFields = (function () {
         const headerId = `${config.containerId}_header`;
         const spinnerId = `${config.containerId}_spinner`;
 
-        // Prevent rerendering the header
-        if (document.getElementById(headerId) !== null) {
-            return null;
+        let headerDiv = document.getElementById(headerId);
+        if (!headerDiv) {
+            headerDiv = document.createElement("div");
+            headerDiv.className = "d-flex";
+            headerDiv.id = headerId;
+
+            const heading = document.createElement("h2");
+            heading.className = "fs-5 mt-3";
+            heading.textContent = __("Extended Attributes");
+            headerDiv.appendChild(heading);
         }
-
-        const headerDiv = document.createElement("div");
-        headerDiv.className = "d-flex";
-        headerDiv.id = headerId;
-
-        const heading = document.createElement("h2");
-        heading.className = "fs-5 mt-3";
-        heading.textContent = __("Extended Attributes");
-        headerDiv.appendChild(heading);
 
         const spinner = document.createElement("div");
         spinner.className = "spinner-border text-primary d-none";
