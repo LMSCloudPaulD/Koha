@@ -119,6 +119,19 @@
     <script>
         let table_settings = [% TablesSettings.GetTableSettings( 'circ', 'bookings', 'bookings-to-collect', 'json' ) | $raw %];
         $(document).ready(function() {
+            $.ajax({
+                url: '/api/v1/extended_attribute_types',
+                dataType: 'json',
+                type: 'GET',
+                data: {
+                    resource_type: "booking",
+                },
+            }).then(response => {
+                extended_attribute_types = response.reduce((accumulator, extended_attribute_type) => {
+                    accumulator[extended_attribute_type.extended_attribute_type_id] = extended_attribute_type.name;
+                    return accumulator;
+                }, {});
+            });
 
             let additional_filters = {
                 start_date: function() {
@@ -174,7 +187,8 @@
                     "item+strings",
                     "item.checkout",
                     "patron",
-                    "pickup_library"
+                    "pickup_library",
+                    "extended_attributes"
                 ],
                 "order": [[ 7, "asc" ]],
                 "columns": [{
@@ -267,6 +281,33 @@
                     "orderable": true,
                     "render": function(data, type, row, meta) {
                         return $date(row.start_date) + ' - ' + $date(row.end_date);
+                    }
+                },
+                {
+                    data: "extended_attributes",
+                    title: _("Additional fields"),
+                    searchable: false,
+                    orderable: false,
+                    render: function (data, type, row, meta) {
+                        if (!data || data.length === 0) return "";
+                        return data
+                            .filter(
+                                attribute =>
+                                    attribute.record_id ==
+                                    row.booking_id
+                            )
+                            .map(attribute => {
+                                let name =
+                                    extended_attribute_types[
+                                        attribute.field_id
+                                    ] ?? attribute.field_id;
+                                let value = attribute.value;
+                                if (value.includes(";")) {
+                                    value = value.split(";").join(", ");
+                                }
+                                return [name, value].join(": ");
+                            })
+                            .join("<br>");
                     }
                 }]
             }, table_settings, 1, additional_filters, filters_options);

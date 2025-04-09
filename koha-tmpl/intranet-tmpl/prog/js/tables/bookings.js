@@ -26,13 +26,28 @@ $(document).ready(function () {
         };
 
         if (!bookings_table) {
+            var extended_attribute_types;
+            $.ajax({
+                url: '/api/v1/extended_attribute_types',
+                dataType: 'json',
+                type: 'GET',
+                data: {
+                    resource_type: "booking",
+                },
+            }).then(response => {
+                extended_attribute_types = response.reduce((accumulator, extended_attribute_type) => {
+                    accumulator[extended_attribute_type.extended_attribute_type_id] = extended_attribute_type.name;
+                    return accumulator;
+                }, {});
+            });
+
             var bookings_table_url = "/api/v1/bookings";
             bookings_table = $("#bookings_table").kohaTable(
                 {
                     ajax: {
                         url: bookings_table_url,
                     },
-                    embed: ["biblio", "item", "patron"],
+                    embed: ["biblio", "item", "patron", "extended_attributes"],
                     columns: [
                         {
                             data: "booking_id",
@@ -92,6 +107,33 @@ $(document).ready(function () {
                             orderable: true,
                             render: function (data, type, row, meta) {
                                 return $date(row.end_date);
+                            },
+                        },
+                        {
+                            data: "extended_attributes",
+                            title: _("Additional fields"),
+                            searchable: false,
+                            orderable: false,
+                            render: function (data, type, row, meta) {
+                                if (!data || data.length === 0) return "";
+                                return data
+                                    .filter(
+                                        attribute =>
+                                            attribute.record_id ==
+                                            row.booking_id
+                                    )
+                                    .map(attribute => {
+                                        let name =
+                                            extended_attribute_types[
+                                                attribute.field_id
+                                            ] ?? attribute.field_id;
+                                        let value = attribute.value;
+                                        if (value.includes(";")) {
+                                            value = value.split(";").join(", ");
+                                        }
+                                        return [name, value].join(": ");
+                                    })
+                                    .join("<br>");
                             },
                         },
                         {
