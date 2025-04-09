@@ -260,7 +260,7 @@ const AdditionalFields = (function () {
                     addIcon.className = "fa fa-plus";
                     addButton.appendChild(addIcon);
 
-                    const addText = document.createTextNode("Add");
+                    const addText = document.createTextNode(__("Add"));
                     addButton.appendChild(addText);
 
                     addButton.onclick = () => {
