@@ -580,7 +580,11 @@ const AdditionalFields = (function () {
      */
     function fetchAuthorizedValues(category) {
         return fetch(
-            `/api/v1/authorised_value_categories/${category}/authorised_values`
+            [
+                "/api/v1/authorised_value_categories",
+                category,
+                "authorised_values",
+            ].join("/")
         )
             .then(response => response.json())
             .catch(error => {
@@ -606,7 +610,10 @@ const AdditionalFields = (function () {
         }
 
         return fetch(
-            `/api/v1/extended_attribute_types?resource_type=${resourceType}`
+            [
+                "/api/v1/extended_attribute_types",
+                new URLSearchParams({ resource_type: resourceType }),
+            ].join("?")
         )
             .then(response => response.json())
             .catch(error => {
