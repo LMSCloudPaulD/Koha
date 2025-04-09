@@ -70,10 +70,6 @@ properties:
     type:
       - string
       - 'null'
-  _strings:
-    type:
-      - object
-      - 'null'
 required:
   - biblio_id
   - item_id
