@@ -304,6 +304,11 @@
                                     <span>Holds ([% RESERVES.count | html %])</span>
                                 [% END %]
                             [% END %]
+                            [% IF Koha.Preference('OPACBookings') && BOOKINGS.count %]
+                                [% WRAPPER tab_item tabname= "opac-user-bookings" %]
+                                    <span>Bookings ([% BOOKINGS.count | html %])</span>
+                                [% END %]
+                            [% END %]
                             [% IF Koha.Preference('UseRecalls') && RECALLS.count %]
                                 [% WRAPPER tab_item tabname= "opac-user-recalls" %]
                                     <span>Recalls ([% RECALLS.count | html %])</span>
@@ -854,6 +859,12 @@
                                 [% END # /tab_panel#opac-user-holds %]
                             [% END # / #RESERVES.count %]
 
+                            [% IF ( BOOKINGS.count ) %]
+                                [% WRAPPER tab_panel tabname="opac-user-bookings" %]
+                                    [% PROCESS 'bookings-table.inc' %]
+                                [% END # /tab_panel#opac-user-bookings %]
+                            [% END # / #BOOKINGS.count %]
+
                             [% IF Koha.Preference('UseRecalls') && RECALLS.count %]
                                 [% WRAPPER tab_panel tabname="opac-user-recalls" %]
                                     <table id="recalls-table" class="table table-bordered table-striped">
@@ -1202,7 +1213,7 @@
                 );
             });
 
-            var dTables = $("#checkoutst,#holdst,#overduest,#opac-user-relative-issues-table");
+            var dTables = $("#checkoutst,#holdst,#overduest,#opac-user-relative-issues-table,#opac-user-bookings-table");
             dTables.each(function(){
                 var thIndex = $(this).find("th.psort").index();
                 $(this).on("init.dt", function() {

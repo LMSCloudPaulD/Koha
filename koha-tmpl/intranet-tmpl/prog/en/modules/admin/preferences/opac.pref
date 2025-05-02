@@ -602,6 +602,12 @@ OPAC:
                   iata2of5: "IATA 2 of 5"
                   coop2of5: "COOP 2 of 5"
             - " barcode in the patron's virtual card."
+        -
+            - pref: OPACBookings
+              choices:
+                  1: Allow
+                  0: "Don't allow"
+            - patrons to place and manage their bookings on the OPAC.
     OpenURL:
         -
             - 'Complete URL of OpenURL resolver (starting with <code>http://</code> or <code>https://</code>):'
@@ -932,99 +938,3 @@ OPAC:
     Suggestions:
         -
             - pref: OpacSuggestionManagedBy
-              choices:
-                  1: Show
-                  0: Don't show
-            - "the name of the staff member who managed a suggestion in OPAC."
-        -
-            - pref: AnonSuggestions
-              choices:
-                  1: Allow
-                  0: "Don't allow"
-            - 'patrons that aren''t logged in to make purchase suggestions. Suggestions are connected to the <a href="/cgi-bin/koha/admin/preferences.pl?op=search&searchfield=AnonymousPatron">AnonymousPatron</a> system preference.'
-        -
-            - Limit patrons to
-            - pref: MaxOpenSuggestions
-              class: integer
-            - "open suggestions. Leave empty for no limit. **Note: this setting does not affect anonymous suggestions."
-        -
-            - Number of total suggestions allowed
-            - pref: MaxTotalSuggestions
-              class: integer
-            - "in"
-            - pref: NumberOfSuggestionDays
-              class: integer
-            - "days."
-        -
-            - pref: OPACViewOthersSuggestions
-              choices:
-                  1: Show
-                  0: "Don't show"
-            - purchase suggestions from other patrons on the OPAC.
-        -
-            - "Fields that should be mandatory for patron purchase suggestions:"
-            - pref: OPACSuggestionMandatoryFields
-              type: modalselect
-              source: suggestions
-              required: title
-            - "<br />Note: if none of the above options are selected, 'Title' field would be mandatory anyway, by default."
-        -
-            - "Fields that should be hidden for patron purchase suggestions:"
-            - pref: OPACSuggestionUnwantedFields
-              type: modalselect
-              source: suggestions
-              exclusions: title
-            - '<br />Note: Do not make <a href="/cgi-bin/koha/admin/preferences.pl?op=search&searchfield=OPACSuggestionMandatoryFields">OPACSuggestionMandatoryFields</a> unwanted fields.'
-        -
-            - pref: suggestion
-              choices:
-                  1: Enable
-                  0: "Disable"
-            - 'purchase suggestions in the OPAC.<br>'
-            - 'When <a href="/cgi-bin/koha/admin/preferences.pl?op=search&searchfield=suggestion">suggestion</a> is enabled and <a href="/cgi-bin/koha/admin/preferences.pl?op=search&searchfield=AnonSuggestions">AnonSuggestions</a> is disabled, following patron categories are not allowed to make purchase suggestions:'
-            - pref: suggestionPatronCategoryExceptions
-              choices: patron-categories
-              class: multiple
-        -
-            - pref: OPACSuggestionAutoFill
-              default: 0
-              choices:
-                  1: Enable
-                  0: Disable
-            - OPAC suggestions form automatically filling with data from Google Books API.
-    Advanced search options:
-        -
-            - "Show search options:"
-            - pref: OpacAdvSearchOptions
-              multiple:
-                pubdate: Publication date
-                itemtype: Item types
-                language: Language
-                subtype: Subtypes
-                sorting: Sorting
-                location: Location and availability
-            - .
-        -
-            - "Show search options for the expanded view:"
-            - pref: OpacAdvSearchMoreOptions
-              multiple:
-                pubdate: Publication date
-                itemtype: Item types
-                language: Language
-                subtype: Subtypes
-                sorting: Sorting
-                location: Location and availability
-            - .
-        -
-            - Show tabs in the OPAC advanced search for limiting searches on the
-            - pref: OpacAdvancedSearchTypes
-              class: long
-            - "fields (separate values with |). Tabs appear in the order listed.<br/>"
-            - "<em>Currently supported values</em>: Item types (<strong>itemtypes</strong>), Collection, (<strong>ccode</strong>) and Shelving location (<strong>loc</strong>)."
-    Authentication:
-        -
-            - pref: OPACShibOnly
-              choices:
-                  1: "Don't allow"
-                  0: Allow
-            - patrons to login by means other than Shibboleth.

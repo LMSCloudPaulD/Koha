@@ -7,6 +7,17 @@ let bookable_items,
     booking_patron,
     booking_itemtype_id;
 
+// Initialize AdditionalFields module
+const additionalFields = AdditionalFields.init({
+    containerId: "booking_extended_attributes",
+    resourceType: "booking",
+    selectors: {
+        repeatableFieldClass: "repeatable-field",
+        inputClass: "extended-attribute",
+        fieldPrefix: "extended_attributes",
+    },
+});
+
 function containsAny(integers1, integers2) {
     // Create a hash set to store integers from the second array
     let integerSet = {};
@@ -36,6 +47,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
     let start_date = button.data("start_date");
     let end_date = button.data("end_date");
     let item_type_id = button.data("item_type_id");
+    let extended_attributes = button.data("extended_attributes");
 
     // Get booking id if this is an edit
     booking_id = button.data("booking");
@@ -47,6 +59,15 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
         // Ensure we don't accidentally update a booking
         $("#booking_id").val("");
     }
+
+    additionalFields
+        .fetchExtendedAttributes("booking")
+        .then(response =>
+            additionalFields.renderExtendedAttributes(
+                response,
+                extended_attributes
+            )
+        );
 
     // Patron select2
     $("#booking_patron_id").kohaSelect({
@@ -341,6 +362,9 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                 biblionumber +
                 "&_per_page=-1" +
                 '&q={"status":{"-in":["new","pending","active"]}}',
+            headers: {
+                "x-koha-embed": ["extended_attributes"],
+            },
             dataType: "json",
             type: "GET",
         });
@@ -1056,7 +1080,8 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                     booking_item_id,
                     start_date,
                     end_date,
-                    periodPicker
+                    periodPicker,
+                    extended_attributes
                 );
             },
             function (jqXHR, textStatus, errorThrown) {
@@ -1069,7 +1094,8 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
             booking_item_id,
             start_date,
             end_date,
-            periodPicker
+            periodPicker,
+            extended_attributes
         );
     }
 });
@@ -1079,7 +1105,8 @@ function setFormValues(
     booking_item_id,
     start_date,
     end_date,
-    periodPicker
+    periodPicker,
+    extended_attributes
 ) {
     // If passed patron, pre-select
     if (patron_id) {
@@ -1132,6 +1159,11 @@ function setFormValues(
     if (booking_item_id) {
         $("#booking_item_id").val(booking_item_id).trigger("change");
     }
+
+    // If passed extended attributes, set them
+    if (extended_attributes) {
+        additionalFields.setValues(extended_attributes);
+    }
 }
 
 $("#placeBookingForm").on("submit", function (e) {
@@ -1155,6 +1187,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
+                extended_attributes: additionalFields.getValues(),
             })
         );
 
@@ -1224,6 +1257,7 @@ $("#placeBookingForm").on("submit", function (e) {
                 biblio_id: biblio_id,
                 item_id: item_id != 0 ? item_id : null,
                 patron_id: $("#booking_patron_id").find(":selected").val(),
+                extended_attributes: additionalFields.getValues(),
             }),
         });
 
@@ -1309,4 +1343,7 @@ $("#placeBookingModal").on("hidden.bs.modal", function (e) {
     $("#booking_start_date").val("");
     $("#booking_end_date").val("");
     $("#booking_id").val("");
+
+    // Clear additional fields
+    additionalFields.clear();
 });

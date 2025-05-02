@@ -53,6 +53,7 @@ sub list {
         license   => 'erm_licenses',
         agreement => 'erm_agreements',
         package   => 'erm_packages',
+        booking   => 'bookings',
         order     => 'aqorders',
     };
 

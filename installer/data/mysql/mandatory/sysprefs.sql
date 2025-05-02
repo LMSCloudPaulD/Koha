@@ -484,6 +484,7 @@ INSERT INTO systempreferences ( `variable`, `value`, `options`, `explanation`, `
 ('OPACAuthorIdentifiersAndInformation', '', '', 'Display author information on the OPAC detail page','multiple_sortable'),
 ('OpacAuthorities','1',NULL,'If ON, enables the search authorities link on OPAC','YesNo'),
 ('OPACBaseURL','',NULL,'Specify the Base URL of the OPAC, e.g., http://opac.mylibrary.com, including the protocol (http:// or https://). Otherwise, the http:// will be added automatically by Koha upon saving.','Free'),
+('OPACBookings', '0', NULL, 'If ON, enables patrons to place and manage their bookings on the OPAC', 'YesNo'),
 ('opacbookbag','1','','If ON, enables display of Cart feature','YesNo'),
 ('OpacBrowser','0',NULL,'If ON, enables subject authorities browser on OPAC (needs to set misc/cronjob/sbuild_browser_and_cloud.pl)','YesNo'),
 ('OpacBrowseResults','1',NULL,'Disable/enable browsing and paging search results from the OPAC detail page.','YesNo'),

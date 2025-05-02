@@ -5,6 +5,7 @@ import { useMainStore } from "../stores/main";
 import { useNavigationStore } from "../stores/navigation";
 import { usePermissionsStore } from "../stores/permissions";
 import { useVendorStore } from "../stores/vendors";
+import { useBookingStore } from "../../modals/place_booking/bookingStore";
 
 /**
  * Represents a web component with an import function and optional configuration.
@@ -77,6 +78,21 @@ export const componentRegistry: Map<string, WebComponentDynamicImport> =
                 },
             },
         ],
+        [
+            "booking-modal-island",
+            {
+                importFn: async () => {
+                    const module = await import(
+                        /* webpackChunkName: "booking-modal-island" */
+                        "../../modals/place_booking/BookingModal.vue"
+                    );
+                    return module.default;
+                },
+                config: {
+                    stores: ["bookingStore", "mainStore"],
+                },
+            },
+        ],
     ]);
 
 /**
@@ -91,6 +107,7 @@ export function hydrate(): void {
             navigationStore: useNavigationStore(pinia),
             permissionsStore: usePermissionsStore(pinia),
             vendorStore: useVendorStore(pinia),
+            bookingStore: useBookingStore(pinia),
         };
 
         const islandTagNames = Array.from(componentRegistry.keys()).join(", ");
@@ -107,6 +124,10 @@ export function hydrate(): void {
             }
 
             const component = await importFn();
+            if (customElements.get(name)) {
+                return;
+            }
+
             customElements.define(
                 name,
                 defineCustomElement(component as any, {

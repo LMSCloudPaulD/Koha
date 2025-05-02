@@ -1712,6 +1712,7 @@
     [% INCLUDE 'js-patron-format.inc' %]
     [% INCLUDE 'js-biblio-format.inc' %]
     [% Asset.js("js/browser.js") | $raw %]
+    [% Asset.js("js/additional-fields.js") | $raw %]
     [% Asset.js("js/modals/place_booking.js") | $raw %]
     <script>
         var browser;

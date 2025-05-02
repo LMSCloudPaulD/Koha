@@ -3,16 +3,80 @@ const { VueLoaderPlugin } = require("vue-loader");
 const path = require("path");
 const rspack = require("@rspack/core");
 
-module.exports = [
-    {
-        resolve: {
-            alias: {
-                "@fetch": path.resolve(
-                    __dirname,
-                    "koha-tmpl/intranet-tmpl/prog/js/fetch"
-                ),
-            },
+// Helper to create base config
+const createBaseConfig = (isOpac = false) => ({
+    resolve: {
+        alias: {
+            "@fetch": path.resolve(
+                __dirname,
+                "koha-tmpl/intranet-tmpl/prog/js/fetch"
+            ),
+            "@bookingApi": path.resolve(
+                __dirname,
+                isOpac
+                    ? "koha-tmpl/intranet-tmpl/prog/js/modals/place_booking/bookingApi.opac.js"
+                    : "koha-tmpl/intranet-tmpl/prog/js/modals/place_booking/bookingApi.js"
+            ),
         },
+    },
+    module: {
+        rules: [
+            {
+                test: /\.vue$/,
+                loader: "vue-loader",
+                options: {
+                    experimentalInlineMatchResource: true,
+                },
+                exclude: [path.resolve(__dirname, "t/cypress/")],
+            },
+            {
+                test: /\.ts$/,
+                loader: "builtin:swc-loader",
+                options: {
+                    jsc: {
+                        parser: {
+                            syntax: "typescript",
+                        },
+                    },
+                    appendTsSuffixTo: [/\.vue$/],
+                },
+                exclude: [
+                    /node_modules/,
+                    path.resolve(__dirname, "t/cypress/"),
+                ],
+                type: "javascript/auto",
+            },
+            {
+                test: /\.css$/i,
+                type: "javascript/auto",
+                use: ["style-loader", "css-loader"],
+            },
+        ],
+    },
+    plugins: [
+        new VueLoaderPlugin(),
+        new rspack.DefinePlugin({
+            __VUE_OPTIONS_API__: true,
+            __VUE_PROD_DEVTOOLS__: false,
+            __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+            // Add environment variable for API module selection
+            __IS_OPAC__: isOpac,
+        }),
+    ],
+    externals: {
+        jquery: "jQuery",
+        "datatables.net": "DataTable",
+        "datatables.net-buttons": "DataTable",
+        "datatables.net-buttons/js/buttons.html5": "DataTable",
+        "datatables.net-buttons/js/buttons.print": "DataTable",
+        "datatables.net-buttons/js/buttons.colVis": "DataTable",
+    },
+});
+
+module.exports = [
+    // Staff interface config
+    {
+        ...createBaseConfig(false),
         entry: {
             erm: "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/erm.ts",
             preservation:
@@ -21,7 +85,6 @@ module.exports = [
                 "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/admin/record_sources.ts",
             acquisitions:
                 "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/acquisitions.ts",
-            islands: "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/islands.ts",
         },
         output: {
             filename: "[name].js",
@@ -32,66 +95,10 @@ module.exports = [
             chunkFilename: "[name].[contenthash].js",
             globalObject: "window",
         },
-        module: {
-            rules: [
-                {
-                    test: /\.vue$/,
-                    loader: "vue-loader",
-                    options: {
-                        experimentalInlineMatchResource: true,
-                    },
-                    exclude: [path.resolve(__dirname, "t/cypress/")],
-                },
-                {
-                    test: /\.ts$/,
-                    loader: "builtin:swc-loader",
-                    options: {
-                        jsc: {
-                            parser: {
-                                syntax: "typescript",
-                            },
-                        },
-                        appendTsSuffixTo: [/\.vue$/],
-                    },
-                    exclude: [
-                        /node_modules/,
-                        path.resolve(__dirname, "t/cypress/"),
-                    ],
-                    type: "javascript/auto",
-                },
-                {
-                    test: /\.css$/i,
-                    type: "javascript/auto",
-                    use: ["style-loader", "css-loader"],
-                },
-            ],
-        },
-        plugins: [
-            new VueLoaderPlugin(),
-            new rspack.DefinePlugin({
-                __VUE_OPTIONS_API__: true,
-                __VUE_PROD_DEVTOOLS__: false,
-                __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-            }),
-        ],
-        externals: {
-            jquery: "jQuery",
-            "datatables.net": "DataTable",
-            "datatables.net-buttons": "DataTable",
-            "datatables.net-buttons/js/buttons.html5": "DataTable",
-            "datatables.net-buttons/js/buttons.print": "DataTable",
-            "datatables.net-buttons/js/buttons.colVis": "DataTable",
-        },
     },
+    // Staff interface ESM config
     {
-        resolve: {
-            alias: {
-                "@fetch": path.resolve(
-                    __dirname,
-                    "koha-tmpl/intranet-tmpl/prog/js/fetch"
-                ),
-            },
-        },
+        ...createBaseConfig(false),
         experiments: {
             outputModule: true,
         },
@@ -110,55 +117,27 @@ module.exports = [
                 type: "module",
             },
         },
-        module: {
-            rules: [
-                {
-                    test: /\.vue$/,
-                    loader: "vue-loader",
-                    options: {
-                        experimentalInlineMatchResource: true,
-                    },
-                    exclude: [path.resolve(__dirname, "t/cypress/")],
-                },
-                {
-                    test: /\.ts$/,
-                    loader: "builtin:swc-loader",
-                    options: {
-                        jsc: {
-                            parser: {
-                                syntax: "typescript",
-                            },
-                        },
-                        appendTsSuffixTo: [/\.vue$/],
-                    },
-                    exclude: [
-                        /node_modules/,
-                        path.resolve(__dirname, "t/cypress/"),
-                    ],
-                    type: "javascript/auto",
-                },
-                {
-                    test: /\.css$/i,
-                    type: "javascript/auto",
-                    use: ["style-loader", "css-loader"],
-                },
-            ],
+    },
+    // OPAC interface config
+    {
+        ...createBaseConfig(true),
+        experiments: {
+            outputModule: true,
         },
-        plugins: [
-            new VueLoaderPlugin(),
-            new rspack.DefinePlugin({
-                __VUE_OPTIONS_API__: true,
-                __VUE_PROD_DEVTOOLS__: false,
-                __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-            }),
-        ],
-        externals: {
-            jquery: "jQuery",
-            "datatables.net": "DataTable",
-            "datatables.net-buttons": "DataTable",
-            "datatables.net-buttons/js/buttons.html5": "DataTable",
-            "datatables.net-buttons/js/buttons.print": "DataTable",
-            "datatables.net-buttons/js/buttons.colVis": "DataTable",
+        entry: {
+            islands: "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/islands.ts",
+        },
+        output: {
+            filename: "[name].esm.js",
+            path: path.resolve(
+                __dirname,
+                "koha-tmpl/opac-tmpl/bootstrap/js/vue/dist/"
+            ),
+            chunkFilename: "[name].[contenthash].esm.js",
+            globalObject: "window",
+            library: {
+                type: "module",
+            },
         },
     },
 ];

@@ -2654,6 +2654,15 @@ sub is_accessible {
     return $consumer->can_see_patron_infos($self);
 }
 
+=head3 public_read_list
+
+=cut
+
+sub public_read_list {
+    return [qw(surname categorycode branchcode)];
+}
+
+
 =head3 unredact_list
 
 This method returns the list of database fields that should be visible, even for restricted users,

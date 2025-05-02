@@ -1,5 +1,6 @@
 import HttpClient from "./http-client.js";
 
+import AdditionalFieldsAPIClient from "./additional-fields-api-client.js";
 import ArticleRequestAPIClient from "./article-request-api-client.js";
 import AVAPIClient from "./authorised-values-api-client.js";
 import CataloguingAPIClient from "./cataloguing-api-client.js";
@@ -15,6 +16,7 @@ import TicketAPIClient from "./ticket-api-client.js";
 import AcquisitionAPIClient from "./acquisition-api-client.js";
 
 export const APIClient = {
+    additional_fields: new AdditionalFieldsAPIClient(HttpClient),
     article_request: new ArticleRequestAPIClient(HttpClient),
     authorised_values: new AVAPIClient(HttpClient),
     acquisition: new AcquisitionAPIClient(HttpClient),

@@ -57,6 +57,15 @@
                 <li [% IF listsview %]class="active"[% END %]> <a href="/cgi-bin/koha/opac-shelves.pl?op=list">Lists</a></li>
             [% END %]
 
+            [% IF Koha.Preference('OPACBookings') && logged_in_user.bookings.count %]
+                [% IF ( bookingsview ) %]
+                    <li class="active">
+                [% ELSE %]
+                    <li>
+                [% END %]
+                <a href="/cgi-bin/koha/opac-bookings.pl">Bookings ([% logged_in_user.bookings.count | html %])</a></li>
+            [% END %]
+
             [% IF Koha.Preference( 'RoutingSerials' ) && logged_in_user && logged_in_user.get_routing_lists.count %]
                 <li [% IF routinglistsview %]class="active"[% END %]> <a href="/cgi-bin/koha/opac-routing-lists.pl">Routing lists</a></li>
             [% END %]
