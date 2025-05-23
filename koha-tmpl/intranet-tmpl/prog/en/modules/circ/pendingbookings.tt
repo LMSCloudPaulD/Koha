@@ -45,6 +45,8 @@
                 <div id="searchresults">
                     <table id="bookingst"></table>
                 </div>
+                [% INCLUDE 'modals/cancel_booking.inc' %]
+                [% INCLUDE 'modals/booking/island.inc' %]
             </main>
         </div>
 
@@ -98,6 +100,7 @@
                         </ol>
                     </fieldset>
                     <fieldset class="action">
+                        <input type="submit" name="any" value="Any" class="btn btn-default" />
                         <input type="submit" name="run_report" value="Submit" class="btn btn-primary" />
                     </fieldset>
                 </form>
@@ -164,6 +167,7 @@
                 [1] : () => all_libraries,
             };
 
+            const CAN_user_circulate_manage_bookings = [% CAN_user_circulate_manage_bookings | $raw %];
             var bookings_table_url = '/api/v1/bookings?';
             var bookings_table = $("#bookingst").kohaTable({
                 "ajax": {
@@ -261,13 +265,70 @@
                 {
                     "data": "start_date",
                     "name": "start_date",
-                    "title": _("Booking dates"),
+                    "title": _("Start date"),
                     "type": "date",
-                    "searchable": false,
+                    "searchable": true,
                     "orderable": true,
                     "render": function(data, type, row, meta) {
-                        return $date(row.start_date) + ' - ' + $date(row.end_date);
+                        return $date(row.start_date);
                     }
+                },
+                {
+                    "data": "end_date",
+                    "name": "end_date",
+                    "title": _("End date"),
+                    "type": "date",
+                    "searchable": true,
+                    "orderable": true,
+                    "render": function(data, type, row, meta) {
+                        return $date(row.end_date);
+                    }
+                },
+                {
+                    "data": "",
+                    "name": "actions",
+                    "title": _("Actions"),
+                    "searchable": false,
+                    "orderable": false,
+                    render: function (data, type, row, meta) {
+                        let result = "";
+                        if (CAN_user_circulate_manage_bookings) {
+                            result += `
+                                <button
+                                    type="button"
+                                    class="btn btn-default btn-xs edit-action"
+                                    data-booking-modal
+                                    data-booking="%s"
+                                    data-biblionumber="%s"
+                                    data-itemnumber="%s"
+                                    data-patron="%s"
+                                    data-pickup_library="%s"
+                                    data-start_date="%s"
+                                    data-end_date="%s"
+                                    data-item_type_id="%s"
+                                >
+                                    <i class="fa fa-pencil" aria-hidden="true"></i> %s
+                                </button>`
+                                    .format(
+                                        row.booking_id,
+                                        row.biblio_id,
+                                        row.item_id,
+                                        row.patron_id,
+                                        row.pickup_library_id,
+                                        row.start_date,
+                                        row.end_date,
+                                        row.item.item_type_id,
+                                        _("Edit")
+                                    );
+                            result +=
+                                '<button type="button" class="btn btn-default btn-xs cancel-action" data-bs-toggle="modal" data-bs-target="#cancelBookingModal" data-booking="' +
+                                row.booking_id +
+                                '"><i class="fa fa-trash" aria-hidden="true"></i> ' +
+                                _("Cancel") +
+                                "</button>";
+                        }
+                        return result;
+                    },
                 }]
             }, table_settings, 1, additional_filters, filters_options);
 
@@ -277,7 +338,22 @@
                 e.preventDefault();
                 bookings_table.DataTable().draw();
             });
+
+            $("#cancellation-reason").comboBox({
+                displayProperty: 'name',
+                placeholder: _("Select or type a reason"),
+            });
+
+            document.querySelector('input[name="any"]').addEventListener('click', e => {
+                e.stopImmediatePropagation();
+                $("#to").get(0)._flatpickr.clear();
+                document.querySelectorAll("#holding_library, #pickup_library")?.forEach(selectElement => {
+                    selectElement.value = "";
+                });
+            });
         });
     </script>
+    [% Asset.js("js/cancel_booking_modal.js") | $raw %]
+    [% Asset.js("js/combobox.js") | $raw %]
 [% END %]
 [% INCLUDE 'intranet-bottom.inc' %]
