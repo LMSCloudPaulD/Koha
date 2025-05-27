@@ -21,7 +21,6 @@ module.exports = [
                 "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/admin/record_sources.ts",
             acquisitions:
                 "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/acquisitions.ts",
-            islands: "./koha-tmpl/intranet-tmpl/prog/js/vue/modules/islands.ts",
         },
         output: {
             filename: "[name].js",
@@ -162,6 +161,14 @@ module.exports = [
         },
     },
     {
+        resolve: {
+            alias: {
+                "@fetch": path.resolve(
+                    __dirname,
+                    "koha-tmpl/intranet-tmpl/prog/js/fetch"
+                ),
+            },
+        },
         experiments: {
             outputModule: true,
         },
