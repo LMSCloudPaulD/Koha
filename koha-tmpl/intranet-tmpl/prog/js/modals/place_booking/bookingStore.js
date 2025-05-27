@@ -11,7 +11,7 @@ import { transformPatronData, transformPatronsData } from "./patronUtils";
  * - loading flags, error messages, etc.
  */
 
-export const useBookingStore = defineStore("booking", {
+export const useBookingStore = defineStore("bookingStore", {
     state: () => ({
         dataFetched: false,
         bookableItems: [],

@@ -89,7 +89,7 @@ export const componentRegistry: Map<string, WebComponentDynamicImport> =
                     return module.default;
                 },
                 config: {
-                    stores: ["booking", "mainStore"],
+                    stores: ["bookingStore", "mainStore"],
                 },
             },
         ],
@@ -107,7 +107,7 @@ export function hydrate(): void {
             navigationStore: useNavigationStore(pinia),
             permissionsStore: usePermissionsStore(pinia),
             vendorStore: useVendorStore(pinia),
-            booking: useBookingStore(pinia),
+            bookingStore: useBookingStore(pinia),
         };
 
         const islandTagNames = Array.from(componentRegistry.keys()).join(", ");
