@@ -1723,7 +1723,6 @@
     [% Asset.js("js/browser.js") | $raw %]
 
     [% IF Koha.Preference('EnableBooking') %]
-        [% Asset.js("js/modals/place_booking.js") | $raw %]
     [% END %]
     <script>
         var browser;

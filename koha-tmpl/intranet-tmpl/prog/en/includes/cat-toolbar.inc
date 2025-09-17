@@ -281,10 +281,9 @@
             [% END %]
         [% END %]
     [% END %]
-    [% IF ( Koha.Preference('EnableBooking') &&  CAN_user_circulate_manage_bookings && biblio.items.filter_by_bookable.count ) %]
-        <div class="btn-group"
-            ><button id="placbooking" class="btn btn-default" data-bs-toggle="modal" data-bs-target="#placeBookingModal" data-biblionumber="[% biblionumber | html %]"><i class="fa fa-calendar"></i> Place booking</button></div
-        >
+    [% IF ( Koha.Preference('EnableBooking') && CAN_user_circulate_manage_bookings && biblio.items.filter_by_bookable.count ) %]
+        [% INCLUDE 'modals/booking/button-place.inc' %]
+        [% INCLUDE 'modals/booking/island.inc' %]
     [% END %]
 
     [% IF Koha.Preference('ArticleRequests') %]
@@ -340,5 +339,3 @@
         </div>
     </div>
 </div>
-
-[% INCLUDE modals/place_booking.inc %]

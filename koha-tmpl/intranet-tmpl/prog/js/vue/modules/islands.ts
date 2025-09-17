@@ -4,6 +4,7 @@ import { $__ } from "../i18n";
 import { useMainStore } from "../stores/main";
 import { useNavigationStore } from "../stores/navigation";
 import { useVendorStore } from "../stores/vendors";
+import { useBookingStore } from "../stores/bookingStore";
 
 /**
  * Represents a web component with an import function and optional configuration.
@@ -42,6 +43,21 @@ type WebComponentDynamicImport = {
  */
 export const componentRegistry: Map<string, WebComponentDynamicImport> =
     new Map([
+        [
+            "booking-modal-island",
+            {
+                importFn: async () => {
+                    const module = await import(
+                        /* webpackChunkName: "booking-modal-island" */
+                        "../components/Bookings/BookingModal.vue"
+                    );
+                    return module.default;
+                },
+                config: {
+                    stores: ["bookingStore"],
+                },
+            },
+        ],
         [
             "acquisitions-menu",
             {
@@ -85,6 +101,7 @@ export function hydrate(): void {
             mainStore: useMainStore(pinia),
             navigationStore: useNavigationStore(pinia),
             vendorStore: useVendorStore(pinia),
+            bookingStore: useBookingStore(pinia),
         };
 
         const islandTagNames = Array.from(componentRegistry.keys()).join(", ");

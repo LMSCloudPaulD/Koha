@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "target": "ES2021",
+        "module": "ES2020",
+        "moduleResolution": "Node",
+        "checkJs": true,
+        "skipLibCheck": true,
+        "allowJs": true,
+        "noEmit": true,
+        "strict": false,
+        "baseUrl": ".",
+        "paths": {
+            "@bookingApi": [
+                "./lib/adapters/api/staff-interface.js",
+                "./lib/adapters/api/opac.js"
+            ]
+        },
+        "types": []
+    },
+    "include": [
+        "./**/*.js",
+        "./**/*.mjs",
+        "./**/*.vue",
+        "./**/*.d.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
