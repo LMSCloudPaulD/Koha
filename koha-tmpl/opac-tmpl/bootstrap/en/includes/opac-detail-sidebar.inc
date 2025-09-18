@@ -19,6 +19,16 @@
         >
     [% END %]
 
+    [%# Booking modal integration to be enabled in a follow-up once OPAC backend wiring lands %]
+    [%# IF Koha.Preference('EnableBooking') && Koha.Preference('opacuserlogin') == 1 %]
+    [%#     <li>
+    [%#         WRAPPER 'auth-redirect.inc' icon="fa fa-fw fa-calendar" label="Place booking" %]
+    [%#             INCLUDE 'modals/booking/button-place.inc' link => 1 %]
+    [%#             INCLUDE 'modals/booking/island.inc' %]
+    [%#         END %]
+    [%#     </li>
+    [%# END %]
+
     <li
         ><a class="print-large btn btn-link btn-lg" href="#"><i class="fa fa-fw fa-print" aria-hidden="true"></i> Print</a></li
     >
