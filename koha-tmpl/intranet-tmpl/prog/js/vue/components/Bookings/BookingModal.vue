@@ -104,17 +104,6 @@
                                 modalState.hasAdditionalFields
                             "
                         />
-                        <BookingAdditionalFields
-                            v-if="showAdditionalFields"
-                            :step-number="stepNumber.additionalFields"
-                            :has-fields="modalState.hasAdditionalFields"
-                            :extended-attributes="extendedAttributes"
-                            :extended-attribute-types="extendedAttributeTypes"
-                            :authorized-values="authorizedValues"
-                            :set-error="setError"
-                            @fields-ready="onAdditionalFieldsReady"
-                            @fields-destroyed="onAdditionalFieldsDestroyed"
-                        />
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -153,7 +142,6 @@ import {
 import BookingPatronStep from "./BookingPatronStep.vue";
 import BookingDetailsStep from "./BookingDetailsStep.vue";
 import BookingPeriodStep from "./BookingPeriodStep.vue";
-import BookingAdditionalFields from "./BookingAdditionalFields.vue";
 import { $__ } from "../../i18n";
 import { processApiError } from "../../utils/apiErrors.js";
 import {
@@ -184,7 +172,6 @@ export default {
         BookingPatronStep,
         BookingDetailsStep,
         BookingPeriodStep,
-        BookingAdditionalFields,
         KohaAlert,
     },
     props: {
@@ -262,8 +249,6 @@ export default {
             hasAdditionalFields: false,
         });
         const { error: uiError, setError, clear: clearError } = useErrorState();
-
-        const additionalFieldsInstance = ref(null);
 
         const modalTitle = computed(
             () =>
@@ -475,12 +460,7 @@ export default {
                         store.fetchCheckouts(biblionumber),
                     ]);
 
-                    const additionalFieldsModule = window["AdditionalFields"];
-                    if (additionalFieldsModule) {
-                        await renderExtendedAttributes(additionalFieldsModule);
-                    } else {
-                        modalState.hasAdditionalFields = false;
-                    }
+                    modalState.hasAdditionalFields = false;
 
                     // Derive item types after bookable items are loaded
                     store.deriveItemTypesFromBookableItems();
@@ -607,48 +587,6 @@ export default {
             { immediate: true }
         );
 
-        /**
-         * Handle additional fields initialization
-         */
-        async function renderExtendedAttributes(additionalFieldsModule) {
-            try {
-                additionalFieldsInstance.value = additionalFieldsModule.init({
-                    containerId: "booking_extended_attributes",
-                    resourceType: "booking",
-                });
-
-                const additionalFieldTypes =
-                    props.extendedAttributeTypes ??
-                    (await additionalFieldsInstance.value.fetchExtendedAttributes(
-                        "booking"
-                    ));
-                if (!additionalFieldTypes?.length) {
-                    modalState.hasAdditionalFields = false;
-                    return;
-                }
-
-                modalState.hasAdditionalFields = true;
-
-                nextTick(() => {
-                    additionalFieldsInstance.value.renderExtendedAttributes(
-                        additionalFieldTypes,
-                        props.extendedAttributes,
-                        props.authorizedValues
-                    );
-                });
-            } catch (error) {
-                console.error("Failed to render extended attributes:", error);
-                modalState.hasAdditionalFields = false;
-            }
-        }
-
-        function onAdditionalFieldsReady(instance) {
-            additionalFieldsInstance.value = instance;
-        }
-
-        function onAdditionalFieldsDestroyed() {
-            additionalFieldsInstance.value = null;
-        }
 
         // Globally clear all error states (modal + store)
         function clearErrors() {
@@ -665,7 +603,6 @@ export default {
             selectedDateRange.value = [];
             modalState.step = 1;
             clearErrors();
-            additionalFieldsInstance.value?.clear?.();
             modalState.hasAdditionalFields = false;
         }
 
@@ -703,13 +640,6 @@ export default {
                 patron_id: bookingPatron.value?.patron_id,
             };
 
-            if (props.showAdditionalFields && additionalFieldsInstance.value) {
-                const values = additionalFieldsInstance.value.getValues?.() ?? [];
-                if (Array.isArray(values) && values.length > 0) {
-                    bookingData.extended_attributes = values;
-                }
-            }
-
             if (isFormSubmission.value) {
                 const form = /** @type {HTMLFormElement} */ (event.target);
                 const csrfToken = /** @type {HTMLInputElement|null} */ (
@@ -717,14 +647,6 @@ export default {
                 );
 
                 const dataToSubmit = { ...bookingData };
-                if (
-                    props.showAdditionalFields &&
-                    Array.isArray(dataToSubmit.extended_attributes)
-                ) {
-                    dataToSubmit.extended_attributes = JSON.stringify(
-                        dataToSubmit.extended_attributes
-                    );
-                }
 
                 appendHiddenInputs(
                     form,
@@ -750,9 +672,6 @@ export default {
 
         // Cleanup function for proper memory management
         onUnmounted(() => {
-            if (typeof additionalFieldsInstance.value?.destroy === "function") {
-                additionalFieldsInstance.value.destroy();
-            }
             enableBodyScroll();
         });
 
@@ -796,8 +715,6 @@ export default {
             bookableItemsFilteredOut,
             bookableItemsTotal,
             maxBookingPeriod,
-            onAdditionalFieldsReady,
-            onAdditionalFieldsDestroyed,
             hasPositiveCapacity,
             zeroCapacityMessage,
             showCapacityWarning,
