@@ -234,7 +234,6 @@ export type RulesParams = {
     patron_category_id?: string | number;
     item_type_id?: Id;
     library_id?: string;
-    start_date?: string;
 };
 
 /** Flatpickr instance augmented with a cache for constraint highlighting. */

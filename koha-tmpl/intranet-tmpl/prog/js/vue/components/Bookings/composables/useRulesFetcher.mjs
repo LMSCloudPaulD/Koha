@@ -47,11 +47,11 @@ export function useRulesFetcher(options) {
                     ? constrainedItemTypes.value[0].item_type_id
                     : undefined);
 
-    const rulesParams = {
-        patron_category_id: patron?.category_id,
-        item_type_id: derivedItemTypeId,
-        library_id: bookingPickupLibraryId.value,
-    };
+            const rulesParams = {
+                patron_category_id: patron?.category_id,
+                item_type_id: derivedItemTypeId,
+                library_id: bookingPickupLibraryId.value,
+            };
             const key = buildRulesKey(rulesParams);
             if (lastRulesKey.value !== key) {
                 lastRulesKey.value = key;

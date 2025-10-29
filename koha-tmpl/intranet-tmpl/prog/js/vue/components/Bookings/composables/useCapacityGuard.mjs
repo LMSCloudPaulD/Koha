@@ -1,39 +1,39 @@
-import { computed, watch } from "vue";
+import { computed } from "vue";
 import { $__ } from "../../../i18n/index.js";
 
 /**
  * Centralized capacity guard for booking period availability.
  * Determines whether circulation rules yield a positive booking period,
- * derives a context-aware message, and can drive a global warning + error state.
+ * derives a context-aware message, and drives a global warning state.
  *
  * @param {Object} options
  * @param {import('vue').Ref<Array<import('../types/bookings').CirculationRule>>} options.circulationRules
+ * @param {import('vue').Ref<{patron_category_id: string|null, item_type_id: string|null, library_id: string|null}|null>} options.circulationRulesContext
  * @param {import('vue').Ref<{ bookings: boolean; checkouts: boolean; bookableItems: boolean; circulationRules: boolean }>} options.loading
  * @param {import('vue').Ref<Array<import('../types/bookings').BookableItem>>} options.bookableItems
  * @param {import('vue').Ref<import('../types/bookings').PatronLike|null>} options.bookingPatron
  * @param {import('vue').Ref<string|number|null>} options.bookingItemId
  * @param {import('vue').Ref<string|number|null>} options.bookingItemtypeId
+ * @param {import('vue').Ref<string|null>} options.pickupLibraryId
  * @param {boolean} options.showPatronSelect
  * @param {boolean} options.showItemDetailsSelects
  * @param {boolean} options.showPickupLocationSelect
  * @param {string|null} options.dateRangeConstraint
- * @param {(msg: string) => void} options.setError
- * @param {() => void} options.clearError
  */
 export function useCapacityGuard(options) {
     const {
         circulationRules,
+        circulationRulesContext,
         loading,
         bookableItems,
         bookingPatron,
         bookingItemId,
         bookingItemtypeId,
+        pickupLibraryId,
         showPatronSelect,
         showItemDetailsSelects,
         showPickupLocationSelect,
         dateRangeConstraint,
-        setError,
-        clearError,
     } = options;
 
     const hasPositiveCapacity = computed(() => {
@@ -59,61 +59,97 @@ export function useCapacityGuard(options) {
         return issuelength > 0 || withRenewals > 0;
     });
 
-    // Tailored suggestion text depending on which inputs are available
+    // Tailored error message based on rule values and available inputs
     const zeroCapacityMessage = computed(() => {
+        const rules = circulationRules.value?.[0] || {};
+        const issuelength = rules.issuelength;
+        const hasExplicitZero = issuelength != null && Number(issuelength) === 0;
+        const hasNull = issuelength === null || issuelength === undefined;
+
+        // If rule explicitly set to zero, it's a circulation policy issue
+        if (hasExplicitZero) {
+            if (showPatronSelect && showItemDetailsSelects && showPickupLocationSelect) {
+                return $__(
+                    "Bookings are not permitted for this combination of patron category, item type, and pickup location. The circulation rules set the booking period to zero days."
+                );
+            }
+            if (showItemDetailsSelects && showPickupLocationSelect) {
+                return $__(
+                    "Bookings are not permitted for this item type at the selected pickup location. The circulation rules set the booking period to zero days."
+                );
+            }
+            if (showItemDetailsSelects) {
+                return $__(
+                    "Bookings are not permitted for this item type. The circulation rules set the booking period to zero days."
+                );
+            }
+            return $__(
+                "Bookings are not permitted for this item. The circulation rules set the booking period to zero days."
+            );
+        }
+
+        // If null, no specific rule exists - suggest trying different options
+        if (hasNull) {
+            const suggestions = [];
+            if (showItemDetailsSelects) suggestions.push($__("item type"));
+            if (showPickupLocationSelect) suggestions.push($__("pickup location"));
+            if (showPatronSelect) suggestions.push($__("patron"));
+
+            if (suggestions.length > 0) {
+                const suggestionText = suggestions.join($__(" or "));
+                return $__(
+                    "No circulation rule is defined for this combination. Try a different %s."
+                ).replace("%s", suggestionText);
+            }
+        }
+
+        // Fallback for other edge cases
         const both = showItemDetailsSelects && showPickupLocationSelect;
         if (both) {
-            return $__ (
+            return $__(
                 "No valid booking period is available with the current selection. Try a different item type or pickup location."
             );
         }
         if (showItemDetailsSelects) {
-            return $__ (
+            return $__(
                 "No valid booking period is available with the current selection. Try a different item type."
             );
         }
         if (showPickupLocationSelect) {
-            return $__ (
+            return $__(
                 "No valid booking period is available with the current selection. Try a different pickup location."
             );
         }
-        // Inputs hidden (e.g., OPAC) — provide generic guidance
-        return $__ (
+        return $__(
             "No valid booking period is available for this record with your current settings. Please try again later or contact your library."
         );
     });
 
     // Compute when to show the global capacity banner
     const showCapacityWarning = computed(() => {
-        const ready =
+        const dataReady =
             !loading.value?.bookings &&
             !loading.value?.checkouts &&
-            !loading.value?.bookableItems &&
-            !loading.value?.circulationRules;
+            !loading.value?.bookableItems;
         const hasItems = (bookableItems.value?.length ?? 0) > 0;
-        const validInputs =
-            (!showPatronSelect || !!bookingPatron.value) &&
-            (!showItemDetailsSelects ||
-                !!bookingItemId.value ||
-                !!bookingItemtypeId.value);
-        return ready && hasItems && validInputs && !hasPositiveCapacity.value;
-    });
+        const hasRules = (circulationRules.value?.length ?? 0) > 0;
 
-    // Surface a helpful error when no capacity is available once data is ready
-    watch(
-        () => showCapacityWarning.value,
-        show => {
-            if (show) {
-                setError(
-                    $__ (
-                        "No valid booking period available (circulation rules evaluate to 0)."
-                    )
-                );
-            } else {
-                clearError();
-            }
-        }
-    );
+        // Only show warning when we have complete context for circulation rules.
+        // Use the stored context from the last API request rather than inferring from UI state.
+        // Complete context means all three components were provided: patron_category, item_type, library.
+        const context = circulationRulesContext.value;
+        const hasCompleteContext =
+            context &&
+            context.patron_category_id != null &&
+            context.item_type_id != null &&
+            context.library_id != null;
+
+        // Only show warning after we have the most specific circulation rule (not while loading)
+        // and all required context is present
+        const rulesReady = !loading.value?.circulationRules;
+
+        return dataReady && rulesReady && hasItems && hasRules && hasCompleteContext && !hasPositiveCapacity.value;
+    });
 
     return { hasPositiveCapacity, zeroCapacityMessage, showCapacityWarning };
 }

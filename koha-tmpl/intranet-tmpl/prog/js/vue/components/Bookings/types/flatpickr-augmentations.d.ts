@@ -1,7 +1,5 @@
-import "flatpickr/dist/types/instance";
-
 // Augment flatpickr Instance to carry cached highlighting data
-declare module "flatpickr/dist/types/instance" {
+declare module "flatpickr" {
     interface Instance {
         /** Koha Bookings: cached constraint highlighting for re-application after navigation */
         _constraintHighlighting?: import('./bookings').ConstraintHighlighting | null;

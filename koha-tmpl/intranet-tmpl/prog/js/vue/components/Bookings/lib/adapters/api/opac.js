@@ -157,36 +157,32 @@ export async function fetchPickupLocations(biblionumber, patronId) {
 }
 
 /**
- * Fetches circulation rules for booking constraints using the core endpoint
+ * Fetches circulation rules for booking constraints
+ * Now uses the enhanced circulation_rules endpoint with date calculation capabilities
  * @param {Object} params - Parameters for circulation rules query
  * @param {string|number} [params.patron_category_id] - Patron category ID
  * @param {string|number} [params.item_type_id] - Item type ID
  * @param {string|number} [params.library_id] - Library ID
  * @param {string} [params.rules] - Comma-separated list of rule kinds (defaults to booking rules)
- * @returns {Promise<Object>} Object containing circulation rules
+ * @param {boolean} [params.calculate_dates] - Whether to calculate dates (defaults to true for bookings)
+ * @returns {Promise<Object>} Object containing circulation rules with calculated dates
  * @throws {Error} If the request fails or returns a non-OK status
  */
 export async function fetchCirculationRules(params = {}) {
-    const allowedKeys = new Set([
-        "patron_category_id",
-        "item_type_id",
-        "library_id",
-        "rules",
-    ]);
-
     const filteredParams = {};
-    Object.keys(params || {}).forEach(key => {
-        const value = params[key];
+    for (const key in params) {
         if (
-            !allowedKeys.has(key) ||
-            value === null ||
-            value === undefined ||
-            value === ""
+            params[key] !== null &&
+            params[key] !== undefined &&
+            params[key] !== ""
         ) {
-            return;
+            filteredParams[key] = params[key];
         }
-        filteredParams[key] = value;
-    });
+    }
+
+    // if (filteredParams.calculate_dates === undefined) {
+    //     filteredParams.calculate_dates = true;
+    // }
 
     if (!filteredParams.rules) {
         filteredParams.rules =

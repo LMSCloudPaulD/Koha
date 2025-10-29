@@ -4,11 +4,14 @@ import { isoArrayToDates } from "../lib/booking/date-utils.mjs";
 import { useBookingStore } from "../../../stores/bookingStore.js";
 import {
     applyCalendarHighlighting,
+    clearCalendarHighlighting,
     createOnDayCreate,
     createOnClose,
     createOnChange,
     getVisibleCalendarDates,
     buildMarkerGrid,
+    getCurrentLanguageCode,
+    preloadFlatpickrLocale,
 } from "../lib/adapters/calendar.mjs";
 import {
     CLASS_FLATPICKR_DAY,
@@ -83,13 +86,21 @@ export function useFlatpickr(elRef, options) {
         }
     }
 
-    onMounted(() => {
+    onMounted(async () => {
         if (!elRef?.value) return;
+
+        // Ensure locale is loaded before initializing flatpickr
+        await preloadFlatpickrLocale();
 
         const dateFormat =
             typeof win("flatpickr_dateformat_string") === "string"
                 ? /** @type {string} */ (win("flatpickr_dateformat_string"))
                 : "d.m.Y";
+
+        const langCode = getCurrentLanguageCode();
+        // Use locale from window.flatpickr.l10ns (populated by dynamic import in preloadFlatpickrLocale)
+        // The ES module flatpickr import and window.flatpickr are different instances
+        const locale = langCode !== "en" ? win("flatpickr")?.["l10ns"]?.[langCode] : undefined;
 
         /** @type {Partial<import('flatpickr/dist/types/options').Options>} */
         const baseConfig = {
@@ -98,6 +109,7 @@ export function useFlatpickr(elRef, options) {
             disable: [() => false],
             clickOpens: true,
             dateFormat,
+            ...(locale && { locale }),
             allowInput: false,
             onChange: createOnChange(store, {
                 setError,
@@ -188,7 +200,17 @@ export function useFlatpickr(elRef, options) {
         watch(
             () => highlightingData.value,
             data => {
-                if (!fp || !data) return;
+                if (!fp) return;
+                if (!data) {
+                    // Clear the cache to prevent onDayCreate from reapplying stale data
+                    const instWithCache =
+                        /** @type {import('../types/bookings').FlatpickrInstanceWithHighlighting} */ (
+                            fp
+                        );
+                    instWithCache._constraintHighlighting = null;
+                    clearCalendarHighlighting(fp);
+                    return;
+                }
                 applyCalendarHighlighting(fp, data);
             }
         );

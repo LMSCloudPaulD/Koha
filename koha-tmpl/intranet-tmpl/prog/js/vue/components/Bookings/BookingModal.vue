@@ -16,7 +16,7 @@
                     </h5>
                     <button
                         type="button"
-                        class="close booking-modal-close"
+                        class="booking-modal-close"
                         aria-label="Close"
                         @click="handleClose"
                     >
@@ -164,7 +164,6 @@ import {
 import { useBookingStore } from "../../stores/bookingStore";
 import { storeToRefs } from "pinia";
 import { updateExternalDependents } from "./lib/adapters/external-dependents.mjs";
-import { preloadFlatpickrLocale } from "./lib/adapters/calendar.mjs";
 import { enableBodyScroll, disableBodyScroll } from "./lib/adapters/modal-scroll.mjs";
 import { appendHiddenInputs } from "./lib/adapters/form.mjs";
 import { calculateStepNumbers } from "./lib/ui/steps.mjs";
@@ -247,6 +246,7 @@ export default {
             pickupLocations,
             itemTypes,
             circulationRules,
+            circulationRulesContext,
             loading,
         } = storeToRefs(store);
 
@@ -271,11 +271,23 @@ export default {
                 (bookingId.value ? $__("Edit booking") : $__("Place booking"))
         );
 
+        // Determine whether to show pickup location select
+        // In OPAC: show if default library is not enabled
+        // In staff: use the explicit prop
+        const showPickupLocationSelect = computed(() => {
+            if (props.opacDefaultBookingLibraryEnabled !== null) {
+                const enabled = props.opacDefaultBookingLibraryEnabled === true ||
+                    String(props.opacDefaultBookingLibraryEnabled) === "1";
+                return !enabled;
+            }
+            return props.showPickupLocationSelect;
+        });
+
         const stepNumber = computed(() => {
             return calculateStepNumbers(
                 props.showPatronSelect,
                 props.showItemDetailsSelects,
-                props.showPickupLocationSelect,
+                showPickupLocationSelect.value,
                 props.showAdditionalFields,
                 modalState.hasAdditionalFields
             );
@@ -360,21 +372,21 @@ export default {
             maxBookingPeriod: maxBookingPeriod.value,
         }));
 
-        // Centralized capacity guard (extracts UI and error handling)
+        // Centralized capacity guard (extracts UI warning state)
         const { hasPositiveCapacity, zeroCapacityMessage, showCapacityWarning } =
             useCapacityGuard({
                 circulationRules,
+                circulationRulesContext,
                 loading,
                 bookableItems,
                 bookingPatron,
                 bookingItemId,
                 bookingItemtypeId,
+                pickupLibraryId,
                 showPatronSelect: props.showPatronSelect,
                 showItemDetailsSelects: props.showItemDetailsSelects,
-                showPickupLocationSelect: props.showPickupLocationSelect,
+                showPickupLocationSelect: showPickupLocationSelect.value,
                 dateRangeConstraint: props.dateRangeConstraint,
-                setError,
-                clearError,
             });
 
         // Readiness flags
@@ -444,8 +456,6 @@ export default {
             async open => {
                 if (open) {
                     disableBodyScroll();
-                    // Preload the appropriate flatpickr locale
-                    await preloadFlatpickrLocale();
                 } else {
                     enableBodyScroll();
                     return;
@@ -533,7 +543,6 @@ export default {
                 item: bookingItemId.value,
                 d0: selectedDateRange.value?.[0],
                 d1: selectedDateRange.value?.[1],
-                rulesLoading: loading.value.circulationRules,
             }),
             (curr, prev) => {
                 const inputsChanged =
@@ -545,10 +554,6 @@ export default {
                     curr.d0 !== prev.d0 ||
                     curr.d1 !== prev.d1;
                 if (inputsChanged) clearErrors();
-
-                if (prev?.rulesLoading && !curr.rulesLoading) {
-                    clearErrors();
-                }
             }
         );
 
@@ -570,10 +575,20 @@ export default {
                 () => bookingPatron.value,
                 () => pickupLibraryId.value,
                 () => bookingItemtypeId.value,
+                dataReady,
+                () => loading.value.circulationRules,
+                () => loading.value.pickupLocations,
             ],
-            ([availableItems, patron, pickupLibrary, itemtypeId]) => {
-                // Only show error if user has made selections that result in no items
+            ([availableItems, patron, pickupLibrary, itemtypeId, isDataReady]) => {
+                // Only show error if data is loaded and user has made selections that result in no items
+                // Wait for pickup locations and circulation rules to finish loading to avoid false positives
+                const pickupLocationsReady = !pickupLibrary || (!loading.value.pickupLocations && pickupLocations.value.length > 0);
+                const circulationRulesReady = !loading.value.circulationRules;
+
                 if (
+                    isDataReady &&
+                    pickupLocationsReady &&
+                    circulationRulesReady &&
                     patron &&
                     (pickupLibrary || itemtypeId) &&
                     availableItems.length === 0
@@ -747,6 +762,7 @@ export default {
             submitLabel,
             isFormSubmission,
             loading,
+            showPickupLocationSelect,
             // Store refs from storeToRefs
             selectedDateRange,
             bookingId,
@@ -945,6 +961,13 @@ export default {
     color: var(--booking-neutral-500);
     opacity: 0.5;
     transition: opacity var(--booking-transition-fast);
+    padding: 0;
+    margin: 0;
+    width: var(--booking-space-2xl);
+    height: var(--booking-space-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .booking-modal-close:hover {
