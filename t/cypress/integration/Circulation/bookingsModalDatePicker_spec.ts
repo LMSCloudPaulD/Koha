@@ -571,8 +571,11 @@ describe("Booking Modal Date Picker Tests", () => {
          */
 
         // Calculate expected bold dates based on circulation rules (like original test)
-        // Bold dates occur at period endpoints: start + issuelength, start + issuelength + renewalperiod, etc.
+        // Bold dates include: start date, issue period end, and each renewal period end
         const expectedBoldDates = [];
+
+        // Start date is bold
+        expectedBoldDates.push(clearZoneStart);
 
         // Issue period end (after issuelength days)
         expectedBoldDates.push(
@@ -975,6 +978,353 @@ describe("Booking Modal Date Picker Tests", () => {
         );
         cy.log(
             "✓ Phase 5: Max date is selectable when trail period has no conflicts"
+        );
+    });
+
+    it("should handle bidirectional lead/trail period conflicts", () => {
+        /**
+         * CRITICAL ENHANCEMENT: Bidirectional Lead/Trail Period Checking
+         * =============================================================
+         * This test validates that lead/trail periods work in BOTH directions:
+         * - New booking's LEAD period must not conflict with existing booking's TRAIL period
+         * - New booking's TRAIL period must not conflict with existing booking's LEAD period
+         * - This ensures full "protected periods" around existing bookings are respected
+         *
+         * PROTECTED PERIOD CONCEPT:
+         * ========================
+         * Each existing booking has a "protected period" = Lead + Actual + Trail
+         * New bookings must ensure their Lead + Actual + Trail does not overlap
+         * with ANY part of existing bookings' protected periods.
+         *
+         * Test Coverage:
+         * 2B. Lead period conflicts with existing booking TRAIL periods (NEW bidirectional)
+         * 6B. Trail period conflicts with existing booking LEAD periods (NEW bidirectional)
+         * 7. Valid booking range can be selected respecting all constraints
+         *
+         * Timeline with Existing Bookings and Protected Periods:
+         * ======================================================================
+         * Day:  15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 ... 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68
+         *
+         * Booking A (Days 20-25):
+         * Lead:              L  L
+         * Actual:                  [===================]
+         * Trail:                                           T  T  T
+         * Protected:         L  L [===================] T  T  T
+         *                   18 19 20 21 22 23 24 25 26 27 28
+         *
+         * Booking B (Days 60-65):
+         * Lead:                                                             L  L
+         * Actual:                                                                 [===================]
+         * Trail:                                                                                           T  T  T
+         * Protected:                                                        L  L [===================] T  T  T
+         *                                                                  58 59 60 61 62 63 64 65 66 67 68
+         *
+         * Test Zones:
+         * ===========
+         * - Days 27-30: Lead conflicts with Booking A TRAIL period (NEW bidirectional)
+         * - Day 31: Clear start (lead Days 29-30, after Booking A trail ends Day 28)
+         * - Days 55-56: Trail conflicts with Booking B LEAD period (NEW bidirectional)
+         * - Day 54: Clear end from Day 31 (trail Days 55-57, just before Booking B lead Day 58)
+         *
+         * Expected Behaviors - NEW Bidirectional:
+         * =======================================
+         * - Days 27, 28, 29, 30: leadDisable (lead overlaps Booking A TRAIL Days 26-28)
+         * - Days 55, 56: trailDisable (trail overlaps Booking B LEAD Days 58-59)
+         *
+         * Valid Booking Window:
+         * ====================
+         * - Start Day 31, End Day 54
+         * - New booking lead Days 29-30: Clear of Booking A trail (ends Day 28) ✓
+         * - New booking trail Days 55-57: Clear of Booking B lead (starts Day 58) ✓
+         */
+
+        const today = dayjs().startOf("day");
+
+        // Set up circulation rules with lead and trail periods
+        const leadTrailCirculationRules = {
+            bookings_lead_period: 2, // 2 days before start
+            bookings_trail_period: 3, // 3 days after end
+            issuelength: 14,
+            renewalsallowed: 2,
+            renewalperiod: 7,
+        };
+
+        cy.intercept("GET", "/api/v1/circulation_rules*", {
+            body: [leadTrailCirculationRules],
+        }).as("getBidirectionalRules");
+
+        // Create existing bookings to test conflict detection
+        // IMPORTANT: Existing bookings also have lead/trail periods that must be respected
+        const conflictBookings = [
+            {
+                name: "Booking A (bidirectional lead/trail conflict test)",
+                start: today.add(20, "day"),
+                end: today.add(25, "day"),
+                item_id: testData.items[0].item_id,
+                // Booking A protected period calculation:
+                // - Lead: Days 18-19 (2 days before start Day 20)
+                // - Actual: Days 20-25
+                // - Trail: Days 26-28 (3 days after end Day 25)
+                // - Total protected: Days 18-28
+            },
+            {
+                name: "Booking B (trail conflict test)",
+                start: today.add(60, "day"),
+                end: today.add(65, "day"),
+                item_id: testData.items[0].item_id,
+                // Booking B protected period:
+                // - Lead: Days 58-59
+                // - Actual: Days 60-65
+                // - Trail: Days 66-68
+                // - Total protected: Days 58-68
+            },
+        ];
+
+        conflictBookings.forEach(booking => {
+            cy.task("query", {
+                sql: `INSERT INTO bookings (biblio_id, item_id, patron_id, start_date, end_date, pickup_library_id, status)
+                      VALUES (?, ?, ?, ?, ?, ?, '1')`,
+                values: [
+                    testData.biblio.biblio_id,
+                    booking.item_id,
+                    testData.patron.patron_id,
+                    booking.start.format("YYYY-MM-DD 00:00:00"),
+                    booking.end.format("YYYY-MM-DD 23:59:59"),
+                    testData.libraries[0].library_id,
+                ],
+            });
+            cy.log(
+                `Created ${booking.name}: ${booking.start.format("YYYY-MM-DD")} to ${booking.end.format("YYYY-MM-DD")}`
+            );
+        });
+
+        // Setup modal
+        setupModalForDateTesting({ skipItemSelection: true });
+
+        cy.get("#booking_item_id").should("not.be.disabled");
+        cy.selectFromSelect2ByIndex("#booking_item_id", 1);
+        cy.wait("@getBidirectionalRules");
+
+        cy.get("#period").should("not.be.disabled");
+        cy.get("#period").as("leadTrailFlatpickr");
+        cy.get("@leadTrailFlatpickr").openFlatpickr();
+
+        // ========================================================================
+        // TEST 2B: BIDIRECTIONAL - Lead Period Conflict with Existing Booking TRAIL
+        // ========================================================================
+        cy.log(
+            "=== TEST 2B: Testing new booking lead period conflicts with existing booking TRAIL period ==="
+        );
+
+        /*
+         * NEW BIDIRECTIONAL Conflict Scenario:
+         * Booking A end: Day 25
+         * Booking A trail period: Days 26-28 (3 days after end)
+         *
+         * Test start dates where NEW booking's lead overlaps with Booking A TRAIL:
+         * - Day 27: Lead Days 25-26 → Day 26 is in Booking A trail Days 26-28 → DISABLED
+         * - Day 28: Lead Days 26-27 → Days 26-27 are in Booking A trail → DISABLED
+         * - Day 29: Lead Days 27-28 → Days 27-28 are in Booking A trail → DISABLED
+         * - Day 30: Lead Days 28-29 → Day 28 is last day of Booking A trail → DISABLED
+         *
+         * This is the KEY enhancement: respecting existing booking's trail period!
+         */
+
+        const bookingATrailStart = conflictBookings[0].end.add(1, "day"); // Day 26
+        const bookingATrailEnd = conflictBookings[0].end.add(
+            leadTrailCirculationRules.bookings_trail_period,
+            "day"
+        ); // Day 28
+
+        cy.log(
+            `Booking A trail period: ${bookingATrailStart.format("YYYY-MM-DD")} to ${bookingATrailEnd.format("YYYY-MM-DD")}`
+        );
+
+        const trailPeriodConflicts = [
+            {
+                date: today.add(27, "day"),
+                leadDays: "25-26",
+                reason: "lead Day 26 is within Booking A trail Days 26-28",
+            },
+            {
+                date: today.add(28, "day"),
+                leadDays: "26-27",
+                reason: "lead Days 26-27 overlap with Booking A trail Days 26-28",
+            },
+            {
+                date: today.add(29, "day"),
+                leadDays: "27-28",
+                reason: "lead Days 27-28 overlap with Booking A trail Days 26-28",
+            },
+            {
+                date: today.add(30, "day"),
+                leadDays: "28-29",
+                reason: "lead Day 28 is the last day of Booking A trail",
+            },
+        ];
+
+        trailPeriodConflicts.forEach(test => {
+            cy.log(`Testing ${test.date.format("YYYY-MM-DD")}: ${test.reason}`);
+
+            cy.get("@leadTrailFlatpickr").hoverFlatpickrDate(test.date.toDate());
+
+            cy.get("@leadTrailFlatpickr")
+                .getFlatpickrDate(test.date.toDate())
+                .should("have.class", "leadDisable");
+
+            cy.log(
+                `✓ ${test.date.format("YYYY-MM-DD")}: Has leadDisable (BIDIRECTIONAL: conflicts with trail)`
+            );
+        });
+
+        // ========================================================================
+        // TEST 3: Lead Period Clear - After Existing Booking's Protected Period
+        // ========================================================================
+        cy.log(
+            "=== TEST 3: Testing lead period clear after existing booking's protected period ==="
+        );
+
+        /*
+         * Clear Lead Period Test:
+         * - Day 31 as start has lead period Days 29-30
+         * - Booking A trail ends on Day 28
+         * - Days 29-30 are clear (after Booking A's trail period)
+         * - Day 31 should NOT have leadDisable class
+         * - Clicking should be allowed
+         *
+         * This validates that dates AFTER the full protected period are selectable
+         */
+
+        const clearStartAfterBookingA = today.add(31, "day");
+
+        cy.log(
+            `Testing ${clearStartAfterBookingA.format("YYYY-MM-DD")}: lead Days 29-30 clear of Booking A trail (ends Day 28)`
+        );
+
+        cy.get("@leadTrailFlatpickr").hoverFlatpickrDate(
+            clearStartAfterBookingA.toDate()
+        );
+
+        cy.get("@leadTrailFlatpickr")
+            .getFlatpickrDate(clearStartAfterBookingA.toDate())
+            .should("not.have.class", "leadDisable");
+
+        // Actually select it to establish start date for trail tests
+        cy.get("@leadTrailFlatpickr")
+            .getFlatpickrDate(clearStartAfterBookingA.toDate())
+            .click();
+
+        cy.log(
+            `✓ ${clearStartAfterBookingA.format("YYYY-MM-DD")}: No leadDisable, successfully selected as start`
+        );
+
+        // ========================================================================
+        // TEST 6B: BIDIRECTIONAL - Trail Period Conflict with Existing Booking LEAD
+        // ========================================================================
+        cy.log(
+            "=== TEST 6B: Testing new booking trail period conflicts with existing booking LEAD period ==="
+        );
+
+        /*
+         * NEW BIDIRECTIONAL Conflict Scenario:
+         * Booking B start: Day 60
+         * Booking B lead period: Days 58-59 (2 days before start)
+         *
+         * Test end dates where NEW booking's trail overlaps with Booking B LEAD:
+         * - Day 56: Trail Days 57-59 → Days 58-59 overlap with Booking B lead Days 58-59 → DISABLED
+         * - Day 55: Trail Days 56-58 → Day 58 overlaps with Booking B lead Days 58-59 → DISABLED
+         *
+         * This is the KEY enhancement: respecting existing booking's lead period!
+         */
+
+        const bookingBStart = conflictBookings[1].start; // Day 60
+        const bookingBLeadStart = bookingBStart.subtract(
+            leadTrailCirculationRules.bookings_lead_period,
+            "day"
+        ); // Day 58
+        const bookingBLeadEnd = bookingBStart.subtract(1, "day"); // Day 59
+
+        cy.log(
+            `Booking B lead period: ${bookingBLeadStart.format("YYYY-MM-DD")} to ${bookingBLeadEnd.format("YYYY-MM-DD")}`
+        );
+
+        const leadPeriodTrailConflicts = [
+            {
+                date: today.add(56, "day"),
+                trailDays: "57-59",
+                reason: "trail Days 57-59 overlap with Booking B lead Days 58-59",
+            },
+            {
+                date: today.add(55, "day"),
+                trailDays: "56-58",
+                reason: "trail Day 58 overlaps with Booking B lead Days 58-59",
+            },
+        ];
+
+        leadPeriodTrailConflicts.forEach(test => {
+            cy.log(`Testing ${test.date.format("YYYY-MM-DD")}: ${test.reason}`);
+
+            cy.get("@leadTrailFlatpickr").hoverFlatpickrDate(test.date.toDate());
+
+            cy.get("@leadTrailFlatpickr")
+                .getFlatpickrDate(test.date.toDate())
+                .should("have.class", "trailDisable");
+
+            cy.log(
+                `✓ ${test.date.format("YYYY-MM-DD")}: Has trailDisable (BIDIRECTIONAL: conflicts with lead)`
+            );
+        });
+
+        // ========================================================================
+        // TEST 7: Verify Valid Booking Range Can Be Selected
+        // ========================================================================
+        cy.log(
+            "=== TEST 7: Testing valid booking range selection works correctly ==="
+        );
+
+        /*
+         * Valid Range Selection Test:
+         * - Should be able to select a valid range that respects all constraints
+         * - Start: Day 31 (clear of Booking A's trail ending Day 28)
+         * - End: Day 54 (clear of Booking B's lead starting Day 58)
+         * - This range:
+         *   - Start lead Days 29-30: Clear of Booking A trail (ends Day 28) ✓
+         *   - End trail Days 55-57: Clear of Booking B lead (starts Day 58) ✓
+         * - This verifies bidirectional lead/trail period checking works correctly
+         */
+
+        const validClearEnd = today.add(54, "day");
+
+        cy.get("#period").clearFlatpickr();
+
+        cy.get("#period").selectFlatpickrDateRange(
+            clearStartAfterBookingA,
+            validClearEnd
+        );
+
+        // Verify the dates were accepted
+        cy.get("#booking_start_date").should("not.have.value", "");
+        cy.get("#booking_end_date").should("not.have.value", "");
+
+        cy.log(
+            `✓ Successfully selected valid range: ${clearStartAfterBookingA.format("YYYY-MM-DD")} to ${validClearEnd.format("YYYY-MM-DD")}`
+        );
+        cy.log(
+            "✓ Confirmed: Booking respects both Booking A's trail and Booking B's lead periods"
+        );
+
+        // ========================================================================
+        // Summary
+        // ========================================================================
+        cy.log("=== Bidirectional Lead/Trail Period Tests Complete ===");
+        cy.log(
+            "✓ BIDIRECTIONAL ENHANCEMENT: New booking lead respects existing booking trail periods"
+        );
+        cy.log(
+            "✓ BIDIRECTIONAL ENHANCEMENT: New booking trail respects existing booking lead periods"
+        );
+        cy.log(
+            "✓ Full protected period validation: Existing bookings' lead + actual + trail periods all respected"
         );
     });
 
