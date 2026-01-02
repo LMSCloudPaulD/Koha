@@ -951,6 +951,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                   )
                                 : null;
 
+                            // Calculate new booking's lead/trail periods
                             const leadStart = startDate
                                 ? startDate.subtract(leadDays, "day")
                                 : hoverDate.subtract(leadDays, "day");
@@ -958,8 +959,119 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                             const trailStart = hoverDate;
                             const trailEnd = hoverDate.add(trailDays, "day");
 
+                            // BIDIRECTIONAL ENHANCEMENT: Collect closest bookings for visual feedback
+                            // and check for mathematical conflicts in a single pass
+                            let closestBeforeBooking = null;
+                            let closestBeforeDistance = Infinity;
+
+                            let closestAfterBooking = null;
+                            let closestAfterDistance = Infinity;
+
                             let leadDisable = false;
                             let trailDisable = false;
+
+                            bookings.forEach(booking => {
+                                // Skip if we're editing this booking
+                                if (
+                                    booking_id &&
+                                    booking_id == booking.booking_id
+                                ) {
+                                    return;
+                                }
+
+                                // Skip if not same item (for item-specific bookings)
+                                if (
+                                    booking.item_id &&
+                                    booking_item_id &&
+                                    booking.item_id != booking_item_id
+                                ) {
+                                    return;
+                                }
+
+                                const bookingStart = dayjs(
+                                    booking.start_date
+                                ).startOf("day");
+                                const bookingEnd = dayjs(
+                                    booking.end_date
+                                ).startOf("day");
+
+                                // BIDIRECTIONAL: Mathematical checks for conflicts (works across month boundaries)
+                                // Calculate this booking's full protected period
+                                const existingLeadStart = bookingStart.subtract(
+                                    leadDays,
+                                    "day"
+                                );
+                                const existingLeadEnd = bookingStart.subtract(
+                                    1,
+                                    "day"
+                                );
+                                const existingTrailStart = bookingEnd.add(
+                                    1,
+                                    "day"
+                                );
+                                const existingTrailEnd = bookingEnd.add(
+                                    trailDays,
+                                    "day"
+                                );
+
+                                // Check if new booking's LEAD period overlaps with existing booking's TRAIL period
+                                if (!periodPicker.selectedDates[0]) {
+                                    if (
+                                        leadStart.isSameOrBefore(
+                                            existingTrailEnd
+                                        ) &&
+                                        leadEnd.isSameOrAfter(
+                                            existingTrailStart
+                                        )
+                                    ) {
+                                        leadDisable = true;
+                                    }
+                                }
+
+                                // Check if new booking's TRAIL period overlaps with existing booking's LEAD period
+                                if (periodPicker.selectedDates[0]) {
+                                    if (
+                                        trailStart.isSameOrBefore(
+                                            existingLeadEnd
+                                        ) &&
+                                        trailEnd.isSameOrAfter(
+                                            existingLeadStart
+                                        )
+                                    ) {
+                                        trailDisable = true;
+                                    }
+                                }
+
+                                // Find closest bookings for visual feedback (when dates are in view)
+                                if (bookingEnd.isBefore(hoverDate)) {
+                                    const distance = hoverDate.diff(
+                                        bookingEnd,
+                                        "day"
+                                    );
+                                    if (distance < closestBeforeDistance) {
+                                        closestBeforeDistance = distance;
+                                        closestBeforeBooking = {
+                                            start: bookingStart,
+                                            end: bookingEnd,
+                                        };
+                                    }
+                                }
+
+                                if (bookingStart.isAfter(hoverDate)) {
+                                    const distance = bookingStart.diff(
+                                        hoverDate,
+                                        "day"
+                                    );
+                                    if (distance < closestAfterDistance) {
+                                        closestAfterDistance = distance;
+                                        closestAfterBooking = {
+                                            start: bookingStart,
+                                            end: bookingEnd,
+                                        };
+                                    }
+                                }
+                            });
+
                             periodPicker.calendarContainer
                                 .querySelectorAll(".flatpickr-day")
                                 .forEach(function (dayElem) {
@@ -967,6 +1079,15 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         dayElem.dateObj
                                     ).startOf("day");
 
+                                    // Clear existing booking lead/trail classes
+                                    dayElem.classList.remove(
+                                        "existingBookingLead"
+                                    );
+                                    dayElem.classList.remove(
+                                        "existingBookingTrail"
+                                    );
+
+                                    // Apply new booking's lead/trail period classes
                                     dayElem.classList.toggle(
                                         "leadRangeStart",
                                         elemDate.isSame(leadStart)
@@ -993,7 +1114,62 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         "trailRangeEnd",
                                         elemDate.isSame(trailEnd)
                                     );
-                                    // If we're overlapping a disabled date, disable our hoverDate
+
+                                    // BIDIRECTIONAL: Show closest existing booking's trail period
+                                    if (closestBeforeBooking && trailDays > 0) {
+                                        const existingTrailStart =
+                                            closestBeforeBooking.end.add(
+                                                1,
+                                                "day"
+                                            );
+                                        const existingTrailEnd =
+                                            closestBeforeBooking.end.add(
+                                                trailDays,
+                                                "day"
+                                            );
+
+                                        if (
+                                            elemDate.isSameOrAfter(
+                                                existingTrailStart
+                                            ) &&
+                                            elemDate.isSameOrBefore(
+                                                existingTrailEnd
+                                            )
+                                        ) {
+                                            dayElem.classList.add(
+                                                "existingBookingTrail"
+                                            );
+                                        }
+                                    }
+
+                                    // BIDIRECTIONAL: Show closest existing booking's lead period
+                                    if (closestAfterBooking && leadDays > 0) {
+                                        const existingLeadStart =
+                                            closestAfterBooking.start.subtract(
+                                                leadDays,
+                                                "day"
+                                            );
+                                        const existingLeadEnd =
+                                            closestAfterBooking.start.subtract(
+                                                1,
+                                                "day"
+                                            );
+
+                                        if (
+                                            elemDate.isSameOrAfter(
+                                                existingLeadStart
+                                            ) &&
+                                            elemDate.isSameOrBefore(
+                                                existingLeadEnd
+                                            )
+                                        ) {
+                                            dayElem.classList.add(
+                                                "existingBookingLead"
+                                            );
+                                        }
+                                    }
+
+                                    // Check for conflicts with flatpickr-disabled dates (original behavior)
                                     if (
                                         dayElem.classList.contains(
                                             "flatpickr-disabled"
@@ -1027,6 +1203,38 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                             }
                                         }
                                     }
+
+                                    // BIDIRECTIONAL: Check for conflicts with existing booking's trail period
+                                    if (
+                                        !periodPicker.selectedDates[0] &&
+                                        dayElem.classList.contains(
+                                            "existingBookingTrail"
+                                        )
+                                    ) {
+                                        // New booking's lead period overlaps with existing booking's trail
+                                        if (
+                                            elemDate.isSameOrAfter(leadStart) &&
+                                            elemDate.isBefore(leadEnd)
+                                        ) {
+                                            leadDisable = true;
+                                        }
+                                    }
+
+                                    // BIDIRECTIONAL: Check for conflicts with existing booking's lead period
+                                    if (
+                                        dayElem.classList.contains(
+                                            "existingBookingLead"
+                                        )
+                                    ) {
+                                        // New booking's trail period overlaps with existing booking's lead
+                                        if (
+                                            elemDate.isAfter(trailStart) &&
+                                            elemDate.isSameOrBefore(trailEnd)
+                                        ) {
+                                            trailDisable = true;
+                                        }
+                                    }
+
                                     dayElem.classList.remove("leadDisable");
                                     dayElem.classList.remove("trailDisable");
                                     dayElem.removeEventListener(

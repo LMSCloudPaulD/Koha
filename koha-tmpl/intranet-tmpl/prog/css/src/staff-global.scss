@@ -938,6 +938,33 @@ $dayTrailBackground: #fcdcb3 !default;
         background: #f5f5f5 !important;  /* Light background */
         cursor: not-allowed !important;
     }
+
+    /* BIDIRECTIONAL ENHANCEMENT: Visual indicators for existing bookings' protected periods */
+    &.existingBookingLead {
+        /* Existing booking's lead period (preparation time before their booking starts) */
+        /* Use diagonal stripes to distinguish from new booking's lead period */
+        background: repeating-linear-gradient(
+            45deg,
+            #e6d4f5,
+            #e6d4f5 10px,
+            #f0e6f8 10px,
+            #f0e6f8 20px
+        );
+        opacity: 0.7;
+    }
+
+    &.existingBookingTrail {
+        /* Existing booking's trail period (processing time after their booking ends) */
+        /* Use diagonal stripes to distinguish from new booking's trail period */
+        background: repeating-linear-gradient(
+            45deg,
+            #fcd4e6,
+            #fcd4e6 10px,
+            #ffe6f0 10px,
+            #ffe6f0 20px
+        );
+        opacity: 0.7;
+    }
 }
 
 .input-warning {
