@@ -1079,12 +1079,24 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         dayElem.dateObj
                                     ).startOf("day");
 
-                                    // Clear existing booking lead/trail classes
+                                    // Clear existing booking lead/trail classes (including start/end)
                                     dayElem.classList.remove(
                                         "existingBookingLead"
                                     );
                                     dayElem.classList.remove(
+                                        "existingBookingLeadStart"
+                                    );
+                                    dayElem.classList.remove(
+                                        "existingBookingLeadEnd"
+                                    );
+                                    dayElem.classList.remove(
                                         "existingBookingTrail"
+                                    );
+                                    dayElem.classList.remove(
+                                        "existingBookingTrailStart"
+                                    );
+                                    dayElem.classList.remove(
+                                        "existingBookingTrailEnd"
                                     );
 
                                     // Apply new booking's lead/trail period classes
@@ -1139,6 +1151,25 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                             dayElem.classList.add(
                                                 "existingBookingTrail"
                                             );
+                                            // Add start/end classes for rounded borders
+                                            if (
+                                                elemDate.isSame(
+                                                    existingTrailStart
+                                                )
+                                            ) {
+                                                dayElem.classList.add(
+                                                    "existingBookingTrailStart"
+                                                );
+                                            }
+                                            if (
+                                                elemDate.isSame(
+                                                    existingTrailEnd
+                                                )
+                                            ) {
+                                                dayElem.classList.add(
+                                                    "existingBookingTrailEnd"
+                                                );
+                                            }
                                         }
                                     }
 
@@ -1166,6 +1197,23 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                             dayElem.classList.add(
                                                 "existingBookingLead"
                                             );
+                                            // Add start/end classes for rounded borders
+                                            if (
+                                                elemDate.isSame(
+                                                    existingLeadStart
+                                                )
+                                            ) {
+                                                dayElem.classList.add(
+                                                    "existingBookingLeadStart"
+                                                );
+                                            }
+                                            if (
+                                                elemDate.isSame(existingLeadEnd)
+                                            ) {
+                                                dayElem.classList.add(
+                                                    "existingBookingLeadEnd"
+                                                );
+                                            }
                                         }
                                     }
 
