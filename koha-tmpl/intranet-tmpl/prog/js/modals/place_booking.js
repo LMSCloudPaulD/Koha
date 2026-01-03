@@ -936,6 +936,17 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                     );
                 }
 
+                // Create feedback message container below the calendar
+                let feedbackDiv = periodPicker.calendarContainer.querySelector(
+                    ".booking-conflict-feedback"
+                );
+                if (!feedbackDiv) {
+                    feedbackDiv = document.createElement("div");
+                    feedbackDiv.className =
+                        "booking-conflict-feedback alert d-none";
+                    periodPicker.calendarContainer.appendChild(feedbackDiv);
+                }
+
                 // Add hints for days before the start range and after the end range
                 periodPicker.calendarContainer.addEventListener(
                     "mouseover",
@@ -955,9 +966,15 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                             const leadStart = startDate
                                 ? startDate.subtract(leadDays, "day")
                                 : hoverDate.subtract(leadDays, "day");
-                            const leadEnd = startDate ? startDate : hoverDate;
-                            const trailStart = hoverDate;
-                            const trailEnd = hoverDate.add(trailDays, "day");
+                            const leadEnd = startDate
+                                ? startDate.subtract(1, "day")
+                                : hoverDate.subtract(1, "day");
+                            const trailStart = startDate
+                                ? hoverDate.add(1, "day")
+                                : hoverDate.add(1, "day");
+                            const trailEnd = startDate
+                                ? hoverDate.add(trailDays, "day")
+                                : hoverDate.add(trailDays, "day");
 
                             // BIDIRECTIONAL ENHANCEMENT: Collect closest bookings for visual feedback
                             // and check for mathematical conflicts in a single pass
@@ -969,6 +986,18 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
 
                             let leadDisable = false;
                             let trailDisable = false;
+
+                            // Track conflict reasons for messaging
+                            let leadConflictReason = {
+                                withTrail: false,
+                                withLead: false,
+                                withBooking: false,
+                            };
+                            let trailConflictReason = {
+                                withTrail: false,
+                                withLead: false,
+                                withBooking: false,
+                            };
 
                             bookings.forEach(booking => {
                                 // Skip if we're editing this booking
@@ -1014,8 +1043,9 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                     "day"
                                 );
 
-                                // Check if new booking's LEAD period overlaps with existing booking's TRAIL period
+                                // Check if new booking's LEAD period overlaps with existing booking
                                 if (!periodPicker.selectedDates[0]) {
+                                    // Check overlap with existing booking's trail period
                                     if (
                                         leadStart.isSameOrBefore(
                                             existingTrailEnd
@@ -1025,11 +1055,31 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         )
                                     ) {
                                         leadDisable = true;
+                                        leadConflictReason.withTrail = true;
+                                    }
+                                    // Check overlap with existing booking's lead period
+                                    else if (
+                                        leadStart.isSameOrBefore(
+                                            existingLeadEnd
+                                        ) &&
+                                        leadEnd.isSameOrAfter(existingLeadStart)
+                                    ) {
+                                        leadDisable = true;
+                                        leadConflictReason.withLead = true;
+                                    }
+                                    // Check overlap with existing booking itself
+                                    else if (
+                                        leadStart.isSameOrBefore(bookingEnd) &&
+                                        leadEnd.isSameOrAfter(bookingStart)
+                                    ) {
+                                        leadDisable = true;
+                                        leadConflictReason.withBooking = true;
                                     }
                                 }
 
-                                // Check if new booking's TRAIL period overlaps with existing booking's LEAD period
+                                // Check if new booking's TRAIL period overlaps with existing booking
                                 if (periodPicker.selectedDates[0]) {
+                                    // Check overlap with existing booking's lead period
                                     if (
                                         trailStart.isSameOrBefore(
                                             existingLeadEnd
@@ -1039,6 +1089,27 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         )
                                     ) {
                                         trailDisable = true;
+                                        trailConflictReason.withLead = true;
+                                    }
+                                    // Check overlap with existing booking's trail period
+                                    else if (
+                                        trailStart.isSameOrBefore(
+                                            existingTrailEnd
+                                        ) &&
+                                        trailEnd.isSameOrAfter(
+                                            existingTrailStart
+                                        )
+                                    ) {
+                                        trailDisable = true;
+                                        trailConflictReason.withTrail = true;
+                                    }
+                                    // Check overlap with existing booking itself
+                                    else if (
+                                        trailStart.isSameOrBefore(bookingEnd) &&
+                                        trailEnd.isSameOrAfter(bookingStart)
+                                    ) {
+                                        trailDisable = true;
+                                        trailConflictReason.withBooking = true;
                                     }
                                 }
 
@@ -1072,6 +1143,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                 }
                             });
 
+                            // Work through all days in view and add classes appropraitely based on hovered date
                             periodPicker.calendarContainer
                                 .querySelectorAll(".flatpickr-day")
                                 .forEach(function (dayElem) {
@@ -1099,35 +1171,46 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         "existingBookingTrailEnd"
                                     );
 
-                                    // Apply new booking's lead/trail period classes
-                                    dayElem.classList.toggle(
-                                        "leadRangeStart",
-                                        elemDate.isSame(leadStart)
-                                    );
-                                    dayElem.classList.toggle(
-                                        "leadRange",
-                                        elemDate.isSameOrAfter(leadStart) &&
-                                            elemDate.isBefore(leadEnd)
-                                    );
-                                    dayElem.classList.toggle(
-                                        "leadRangeEnd",
-                                        elemDate.isSame(leadEnd)
-                                    );
-                                    dayElem.classList.toggle(
-                                        "trailRangeStart",
-                                        elemDate.isSame(trailStart)
-                                    );
-                                    dayElem.classList.toggle(
-                                        "trailRange",
-                                        elemDate.isAfter(trailStart) &&
-                                            elemDate.isSameOrBefore(trailEnd)
-                                    );
-                                    dayElem.classList.toggle(
-                                        "trailRangeEnd",
-                                        elemDate.isSame(trailEnd)
-                                    );
+                                    // Apply proposed booking's lead/trail period classes
+                                    // Only apply lead classes if lead period > 0
+                                    if (leadDays > 0) {
+                                        dayElem.classList.toggle(
+                                            "leadRangeStart",
+                                            elemDate.isSame(leadStart)
+                                        );
+                                        dayElem.classList.toggle(
+                                            "leadRange",
+                                            elemDate.isSameOrAfter(leadStart) &&
+                                                elemDate.isSameOrBefore(leadEnd)
+                                        );
+                                        dayElem.classList.toggle(
+                                            "leadRangeEnd",
+                                            elemDate.isSame(leadEnd)
+                                        );
+                                    }
 
-                                    // BIDIRECTIONAL: Show closest existing booking's trail period
+                                    // Only apply trail classes if trail period > 0
+                                    if (trailDays > 0) {
+                                        dayElem.classList.toggle(
+                                            "trailRangeStart",
+                                            elemDate.isSame(trailStart)
+                                        );
+                                        dayElem.classList.toggle(
+                                            "trailRange",
+                                            elemDate.isSameOrAfter(
+                                                trailStart
+                                            ) &&
+                                                elemDate.isSameOrBefore(
+                                                    trailEnd
+                                                )
+                                        );
+                                        dayElem.classList.toggle(
+                                            "trailRangeEnd",
+                                            elemDate.isSame(trailEnd)
+                                        );
+                                    }
+
+                                    // Show closest preceding existing booking's trail period
                                     if (closestBeforeBooking && trailDays > 0) {
                                         const existingTrailStart =
                                             closestBeforeBooking.end.add(
@@ -1173,7 +1256,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         }
                                     }
 
-                                    // BIDIRECTIONAL: Show closest existing booking's lead period
+                                    // Show closest following existing booking's lead period
                                     if (closestAfterBooking && leadDays > 0) {
                                         const existingLeadStart =
                                             closestAfterBooking.start.subtract(
@@ -1217,7 +1300,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         }
                                     }
 
-                                    // Check for conflicts with flatpickr-disabled dates (original behavior)
+                                    // Check for conflicts with flatpickr-disabled dates
                                     if (
                                         dayElem.classList.contains(
                                             "flatpickr-disabled"
@@ -1226,12 +1309,15 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         if (
                                             !periodPicker.selectedDates[0] &&
                                             elemDate.isSameOrAfter(leadStart) &&
-                                            elemDate.isBefore(leadEnd)
+                                            elemDate.isSameOrBefore(leadEnd)
                                         ) {
                                             leadDisable = true;
                                         }
                                         if (
-                                            elemDate.isAfter(trailStart) &&
+                                            periodPicker.selectedDates[0] &&
+                                            elemDate.isSameOrAfter(
+                                                trailStart
+                                            ) &&
                                             elemDate.isSameOrBefore(trailEnd)
                                         ) {
                                             // Only consider this a conflict if the disabled date is within the max date range
@@ -1252,7 +1338,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         }
                                     }
 
-                                    // BIDIRECTIONAL: Check for conflicts with existing booking's trail period
+                                    // Check for conflicts with existing booking's trail period
                                     if (
                                         !periodPicker.selectedDates[0] &&
                                         dayElem.classList.contains(
@@ -1262,21 +1348,24 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                         // New booking's lead period overlaps with existing booking's trail
                                         if (
                                             elemDate.isSameOrAfter(leadStart) &&
-                                            elemDate.isBefore(leadEnd)
+                                            elemDate.isSameOrBefore(leadEnd)
                                         ) {
                                             leadDisable = true;
                                         }
                                     }
 
-                                    // BIDIRECTIONAL: Check for conflicts with existing booking's lead period
+                                    // Check for conflicts with existing booking's lead period
                                     if (
+                                        periodPicker.selectedDates[0] &&
                                         dayElem.classList.contains(
                                             "existingBookingLead"
                                         )
                                     ) {
                                         // New booking's trail period overlaps with existing booking's lead
                                         if (
-                                            elemDate.isAfter(trailStart) &&
+                                            elemDate.isSameOrAfter(
+                                                trailStart
+                                            ) &&
                                             elemDate.isSameOrBefore(trailEnd)
                                         ) {
                                             trailDisable = true;
@@ -1292,6 +1381,25 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                     );
                                 });
 
+                            // Additional check for hovering directly on existing booking's lead/trail periods
+                            // If hovering on an existing booking's lead period when selecting start date, block selection
+                            if (
+                                !periodPicker.selectedDates[0] &&
+                                target.classList.contains("existingBookingLead")
+                            ) {
+                                leadDisable = true;
+                            }
+
+                            // If hovering on an existing booking's trail period when selecting end date, block selection
+                            if (
+                                periodPicker.selectedDates[0] &&
+                                target.classList.contains(
+                                    "existingBookingTrail"
+                                )
+                            ) {
+                                trailDisable = true;
+                            }
+
                             if (leadDisable) {
                                 target.classList.add("leadDisable");
                             }
@@ -1304,6 +1412,241 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                     disableClick,
                                     true
                                 );
+                            }
+
+                            // Update feedback message
+                            const feedbackDiv =
+                                periodPicker.calendarContainer.querySelector(
+                                    ".booking-conflict-feedback"
+                                );
+                            if (feedbackDiv) {
+                                let message = "";
+                                let messageType = "info"; // info, warning, error
+
+                                // Determine what the hovered date is (needed for both error and info messages)
+                                const today = dayjs().startOf("day");
+                                const isDisabled =
+                                    target.classList.contains(
+                                        "flatpickr-disabled"
+                                    );
+                                const isInExistingLead =
+                                    target.classList.contains(
+                                        "existingBookingLead"
+                                    );
+                                const isInExistingTrail =
+                                    target.classList.contains(
+                                        "existingBookingTrail"
+                                    );
+
+                                // Generate appropriate feedback messages based on conflicts
+                                if (leadDisable || trailDisable) {
+                                    messageType = "error";
+
+                                    // When selecting START date (no date selected yet)
+                                    if (!periodPicker.selectedDates[0]) {
+                                        // Check direct state first (what IS this date?)
+                                        if (hoverDate.isBefore(today)) {
+                                            message = __(
+                                                "Cannot select: date is in the past"
+                                            );
+                                        } else if (isDisabled) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking"
+                                            );
+                                        } else if (isInExistingLead) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking's lead period"
+                                            );
+                                        } else if (isInExistingTrail) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking's trail period"
+                                            );
+                                        }
+                                        // Then check calculated lead period conflicts
+                                        else if (
+                                            leadDays > 0 &&
+                                            leadStart.isSameOrBefore(today)
+                                        ) {
+                                            message =
+                                                __("Cannot select") +
+                                                ": " +
+                                                __(
+                                                    "insufficient lead time (%s days required before start)"
+                                                ).format(leadDays);
+                                        } else if (leadDays > 0) {
+                                            // Use mathematical conflict detection (works across month boundaries)
+                                            if (leadConflictReason.withTrail) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "lead period (%s days before start) conflicts with an existing booking's trail period"
+                                                    ).format(leadDays);
+                                            } else if (
+                                                leadConflictReason.withLead
+                                            ) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "lead period (%s days before start) conflicts with an existing booking's lead period"
+                                                    ).format(leadDays);
+                                            } else if (
+                                                leadConflictReason.withBooking
+                                            ) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "lead period (%s days before start) conflicts with an existing booking"
+                                                    ).format(leadDays);
+                                            }
+                                        } else {
+                                            message = __(
+                                                "Cannot select: conflicts with an existing booking"
+                                            );
+                                        }
+                                    }
+                                    // When selecting END date (start date already selected)
+                                    else if (periodPicker.selectedDates[0]) {
+                                        // Check direct state first (what IS this date?)
+                                        if (isDisabled) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking"
+                                            );
+                                        } else if (isInExistingLead) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking's lead period"
+                                            );
+                                        } else if (isInExistingTrail) {
+                                            message = __(
+                                                "Cannot select: this date is part of an existing booking's trail period"
+                                            );
+                                        }
+                                        // Then check calculated trail period conflicts
+                                        else if (trailDays > 0) {
+                                            // Use mathematical conflict detection (works across month boundaries)
+                                            if (trailConflictReason.withLead) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "trail period (%s days after return) conflicts with an existing booking's lead period"
+                                                    ).format(trailDays);
+                                            } else if (
+                                                trailConflictReason.withTrail
+                                            ) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "trail period (%s days after return) conflicts with an existing booking's trail period"
+                                                    ).format(trailDays);
+                                            } else if (
+                                                trailConflictReason.withBooking
+                                            ) {
+                                                message =
+                                                    __("Cannot select") +
+                                                    ": " +
+                                                    __(
+                                                        "trail period (%s days after return) conflicts with an existing booking"
+                                                    ).format(trailDays);
+                                            }
+                                        } else {
+                                            message = __(
+                                                "Cannot select: conflicts with existing an booking"
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    // Show helpful info messages when no conflicts
+                                    if (!periodPicker.selectedDates[0]) {
+                                        // When selecting start date, show both lead and trail info
+                                        if (leadDays > 0 && trailDays > 0) {
+                                            message =
+                                                __("Selecting start date") +
+                                                ". " +
+                                                __(
+                                                    "Lead period: %s days before start"
+                                                ).format(leadDays) +
+                                                ". " +
+                                                __(
+                                                    "Trail period: %s days after return"
+                                                ).format(trailDays);
+                                        } else if (leadDays > 0) {
+                                            message =
+                                                __("Selecting start date") +
+                                                ". " +
+                                                __(
+                                                    "Lead period: %s days before start"
+                                                ).format(leadDays);
+                                        } else if (trailDays > 0) {
+                                            message =
+                                                __("Selecting start date") +
+                                                ". " +
+                                                __(
+                                                    "Trail period: %s days after return"
+                                                ).format(trailDays);
+                                        } else {
+                                            message = __(
+                                                "Selecting start date"
+                                            );
+                                        }
+                                        messageType = "info";
+                                    } else {
+                                        if (trailDays > 0) {
+                                            message =
+                                                __("Selecting end date") +
+                                                ". " +
+                                                __(
+                                                    "Trail period: %s days after return"
+                                                ).format(trailDays);
+                                        } else {
+                                            message = __("Selecting end date");
+                                        }
+                                        messageType = "info";
+                                    }
+
+                                    // Show additional context if hovering over existing booking periods
+                                    if (isInExistingLead) {
+                                        message +=
+                                            " • " +
+                                            __(
+                                                "hovering existing booking's lead period"
+                                            );
+                                    } else if (isInExistingTrail) {
+                                        message +=
+                                            " • " +
+                                            __(
+                                                "hovering existing booking's trail period"
+                                            );
+                                    }
+                                }
+
+                                feedbackDiv.textContent = message;
+                                feedbackDiv.classList.remove(
+                                    "alert-danger",
+                                    "alert-warning",
+                                    "alert-info"
+                                );
+
+                                if (message) {
+                                    feedbackDiv.classList.remove("d-none");
+                                    // Apply appropriate Bootstrap alert class based on message type
+                                    if (messageType === "error") {
+                                        feedbackDiv.classList.add(
+                                            "alert-danger"
+                                        );
+                                    } else if (messageType === "warning") {
+                                        feedbackDiv.classList.add(
+                                            "alert-warning"
+                                        );
+                                    } else {
+                                        feedbackDiv.classList.add("alert-info");
+                                    }
+                                } else {
+                                    feedbackDiv.classList.add("d-none");
+                                }
                             }
                         }
                     }

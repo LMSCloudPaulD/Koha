@@ -1103,6 +1103,19 @@ $leadClashTrail: #e5d4f5 !default;
     }
 }
 
+// Booking conflict feedback message styles
+.booking-conflict-feedback {
+    // Override Bootstrap's default alert padding and sizing for compact display
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0 !important; // Override Bootstrap's default 1rem margin-bottom
+    min-height: 1.25rem;
+    text-align: center;
+
+    // Bootstrap's .alert-danger, .alert-warning, and .alert-info classes
+    // provide the color schemes via CSS variables when combined with .alert
+}
+
 .input-warning {
     background-color: #ff9;
     border-color: #900;
