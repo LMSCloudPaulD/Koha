@@ -468,19 +468,25 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                     continue;
                                 }
 
-                                let start_date = flatpickr.parseDate(
-                                    booking.start_date
-                                );
-                                let end_date = flatpickr.parseDate(
-                                    booking.end_date
-                                );
+                                // Parse and normalize dates to start-of-day for consistent comparison
+                                let start_date = dayjs(booking.start_date)
+                                    .startOf("day")
+                                    .toDate();
+                                let end_date = dayjs(booking.end_date)
+                                    .startOf("day")
+                                    .toDate();
 
                                 // patron has selected a start date (end date checks)
                                 if (selectedDates[0]) {
+                                    // Normalize selected date to start-of-day for comparison
+                                    let selectedStart = dayjs(selectedDates[0])
+                                        .startOf("day")
+                                        .toDate();
+
                                     // new booking start date is between existing booking start and end dates
                                     if (
-                                        selectedDates[0] >= start_date &&
-                                        selectedDates[0] <= end_date
+                                        selectedStart >= start_date &&
+                                        selectedStart <= end_date
                                     ) {
                                         if (booking.item_id) {
                                             if (
@@ -506,57 +512,62 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                     }
 
                                     // new booking end date would be between existing booking start and end dates
-                                    else if (
-                                        date >= start_date &&
-                                        date <= end_date
-                                    ) {
-                                        if (booking.item_id) {
-                                            if (
-                                                unavailable_items.indexOf(
-                                                    booking.item_id
-                                                ) === -1
-                                            ) {
-                                                unavailable_items.push(
-                                                    booking.item_id
-                                                );
-                                            }
-                                        } else {
-                                            if (
-                                                biblio_bookings.indexOf(
-                                                    booking.booking_id
-                                                ) === -1
-                                            ) {
-                                                biblio_bookings.push(
-                                                    booking.booking_id
-                                                );
+                                    else if (date) {
+                                        let selectedEnd = dayjs(date)
+                                            .startOf("day")
+                                            .toDate();
+                                        if (
+                                            selectedEnd >= start_date &&
+                                            selectedEnd <= end_date
+                                        ) {
+                                            if (booking.item_id) {
+                                                if (
+                                                    unavailable_items.indexOf(
+                                                        booking.item_id
+                                                    ) === -1
+                                                ) {
+                                                    unavailable_items.push(
+                                                        booking.item_id
+                                                    );
+                                                }
+                                            } else {
+                                                if (
+                                                    biblio_bookings.indexOf(
+                                                        booking.booking_id
+                                                    ) === -1
+                                                ) {
+                                                    biblio_bookings.push(
+                                                        booking.booking_id
+                                                    );
+                                                }
                                             }
                                         }
-                                    }
 
-                                    // new booking would span existing booking
-                                    else if (
-                                        selectedDates[0] <= start_date &&
-                                        date >= end_date
-                                    ) {
-                                        if (booking.item_id) {
-                                            if (
-                                                unavailable_items.indexOf(
-                                                    booking.item_id
-                                                ) === -1
-                                            ) {
-                                                unavailable_items.push(
-                                                    booking.item_id
-                                                );
-                                            }
-                                        } else {
-                                            if (
-                                                biblio_bookings.indexOf(
-                                                    booking.booking_id
-                                                ) === -1
-                                            ) {
-                                                biblio_bookings.push(
-                                                    booking.booking_id
-                                                );
+                                        // new booking would span existing booking
+                                        else if (
+                                            selectedStart <= start_date &&
+                                            selectedEnd >= end_date
+                                        ) {
+                                            if (booking.item_id) {
+                                                if (
+                                                    unavailable_items.indexOf(
+                                                        booking.item_id
+                                                    ) === -1
+                                                ) {
+                                                    unavailable_items.push(
+                                                        booking.item_id
+                                                    );
+                                                }
+                                            } else {
+                                                if (
+                                                    biblio_bookings.indexOf(
+                                                        booking.booking_id
+                                                    ) === -1
+                                                ) {
+                                                    biblio_bookings.push(
+                                                        booking.booking_id
+                                                    );
+                                                }
                                             }
                                         }
                                     }
@@ -791,10 +802,14 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                             // Range set, update hidden fields and set available items
                             else if (selectedDates[0] && selectedDates[1]) {
                                 // set form fields from picker
-                                let picker_start = dayjs(selectedDates[0]);
+                                // Ensure dates are normalized to start/end of day in browser timezone
+                                let picker_start = dayjs(
+                                    selectedDates[0]
+                                ).startOf("day");
                                 let picker_end = dayjs(selectedDates[1]).endOf(
                                     "day"
                                 );
+                                // toISOString() converts to RFC3339 format with timezone offset
                                 $("#booking_start_date").val(
                                     picker_start.toISOString()
                                 );
@@ -805,18 +820,32 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                                 // set available items in select2
                                 let booked_items = bookings.filter(
                                     function (booking) {
-                                        let start_date = flatpickr.parseDate(
+                                        // Parse and normalize dates to start-of-day for consistent comparison
+                                        let start_date = dayjs(
                                             booking.start_date
-                                        );
-                                        let end_date = flatpickr.parseDate(
-                                            booking.end_date
-                                        );
+                                        )
+                                            .startOf("day")
+                                            .toDate();
+                                        let end_date = dayjs(booking.end_date)
+                                            .startOf("day")
+                                            .toDate();
+                                        let selectedStart = dayjs(
+                                            selectedDates[0]
+                                        )
+                                            .startOf("day")
+                                            .toDate();
+                                        let selectedEnd = dayjs(
+                                            selectedDates[1]
+                                        )
+                                            .startOf("day")
+                                            .toDate();
+
                                         // This booking ends before the start of the new booking
-                                        if (end_date <= selectedDates[0]) {
+                                        if (end_date < selectedStart) {
                                             return false;
                                         }
-                                        // This booking starts after then end of the new booking
-                                        if (start_date >= selectedDates[1]) {
+                                        // This booking starts after the end of the new booking
+                                        if (start_date > selectedEnd) {
                                             return false;
                                         }
                                         // This booking overlaps
@@ -883,11 +912,13 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                     const item_id = booking.item_id;
 
                     // Iterate through each date within the range of start_date and end_date
-                    let currentDate = new Date(start_date);
-                    while (currentDate <= end_date) {
-                        const currentDateStr = currentDate
-                            .toISOString()
-                            .split("T")[0];
+                    // Use dayjs to maintain browser timezone consistency
+                    let currentDate = dayjs(start_date).startOf("day");
+                    const endDate = dayjs(end_date).endOf("day");
+
+                    while (currentDate <= endDate) {
+                        // Format in browser timezone - no UTC conversion
+                        const currentDateStr = currentDate.format("YYYY-MM-DD");
 
                         // If the date key doesn't exist in the hash, create an empty array for it
                         if (!bookingsByDate[currentDateStr]) {
@@ -898,7 +929,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                         bookingsByDate[currentDateStr].push(item_id);
 
                         // Move to the next day
-                        currentDate.setDate(currentDate.getDate() + 1);
+                        currentDate = currentDate.add(1, "day");
                     }
                 });
 
@@ -910,9 +941,9 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                     periodPicker.config.onDayCreate.push(
                         function dayCreate(dObj, dStr, instance, dayElem) {
                             const currentDate = dayElem.dateObj;
-                            const dateString = currentDate
-                                .toISOString()
-                                .split("T")[0];
+                            // Format in browser timezone to match bookingsByDate keys
+                            const dateString =
+                                dayjs(currentDate).format("YYYY-MM-DD");
 
                             const isBold = boldDates.some(
                                 boldDate =>
