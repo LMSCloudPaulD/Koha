@@ -373,7 +373,7 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                             end_date: checkout.due_date,
                             item_id: checkout.item_id,
                             patron_id: checkout.patron_id,
-                            start_date: new Date().toISOString(),
+                            start_date: dayjs().format(),
                         };
                         bookings.unshift(booking);
                     }
@@ -802,19 +802,16 @@ $("#placeBookingModal").on("show.bs.modal", function (e) {
                             // Range set, update hidden fields and set available items
                             else if (selectedDates[0] && selectedDates[1]) {
                                 // set form fields from picker
-                                // Ensure dates are normalized to start/end of day in browser timezone
-                                let picker_start = dayjs(
-                                    selectedDates[0]
-                                ).startOf("day");
-                                let picker_end = dayjs(selectedDates[1]).endOf(
-                                    "day"
-                                );
-                                // toISOString() converts to RFC3339 format with timezone offset
+                                // Extract local date and send as explicit UTC day boundaries
+                                // This preserves the user's selected DATE regardless of browser timezone
+                                // Using dayjs.utc() ensures startOf/endOf operate in UTC, not browser TZ
+                                let startDate = dayjs(selectedDates[0]).format("YYYY-MM-DD");
+                                let endDate = dayjs(selectedDates[1]).format("YYYY-MM-DD");
                                 $("#booking_start_date").val(
-                                    picker_start.toISOString()
+                                    dayjs.utc(startDate).startOf("day").toISOString()
                                 );
                                 $("#booking_end_date").val(
-                                    picker_end.toISOString()
+                                    dayjs.utc(endDate).endOf("day").toISOString()
                                 );
 
                                 // set available items in select2
@@ -1845,12 +1842,15 @@ $("#placeBookingForm").on("submit", function (e) {
                 bookings_table.api().ajax.reload();
             }
             if (typeof timeline !== "undefined" && timeline !== null) {
+                // Convert to library timezone for timeline display
+                const startServerTz = dayjs(data.start_date).tz($timezone());
+                const endServerTz = dayjs(data.end_date).tz($timezone());
                 timeline.itemsData.add({
                     id: data.booking_id,
                     booking: data.booking_id,
                     patron: data.patron_id,
-                    start: dayjs(data.start_date).toDate(),
-                    end: dayjs(data.end_date).toDate(),
+                    start: $toDisplayDate(startServerTz),
+                    end: $toDisplayDate(endServerTz),
                     content: $patron_to_html(booking_patron, {
                         display_cardnumber: true,
                         url: false,
@@ -1919,12 +1919,15 @@ $("#placeBookingForm").on("submit", function (e) {
                 bookings_table.api().ajax.reload();
             }
             if (typeof timeline !== "undefined" && timeline !== null) {
+                // Convert to library timezone for timeline display
+                const startServerTz = dayjs(data.start_date).tz($timezone());
+                const endServerTz = dayjs(data.end_date).tz($timezone());
                 timeline.itemsData.update({
                     id: data.booking_id,
                     booking: data.booking_id,
                     patron: data.patron_id,
-                    start: dayjs(data.start_date).toDate(),
-                    end: dayjs(data.end_date).toDate(),
+                    start: $toDisplayDate(startServerTz),
+                    end: $toDisplayDate(endServerTz),
                     content: $patron_to_html(booking_patron, {
                         display_cardnumber: true,
                         url: false,
