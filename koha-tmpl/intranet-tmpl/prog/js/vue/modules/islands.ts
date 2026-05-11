@@ -5,6 +5,7 @@ import { $__ } from "../i18n";
 import { useMainStore } from "../stores/main";
 import { useNavigationStore } from "../stores/navigation";
 import { useVendorStore } from "../stores/vendors";
+import { useBookingStore } from "../stores/bookings";
 
 /**
  * Represents a web component with an import function and optional configuration.
@@ -43,6 +44,21 @@ export type WebComponentDynamicImport = {
  */
 export const componentRegistry: Map<string, WebComponentDynamicImport> =
     new Map([
+        [
+            "booking-modal-island",
+            {
+                importFn: async () => {
+                    const module = await import(
+                        /* webpackChunkName: "booking-modal-island" */
+                        "../components/Bookings/BookingModal.vue"
+                    );
+                    return module.default;
+                },
+                config: {
+                    stores: ["bookingStore"],
+                },
+            },
+        ],
         [
             "acquisitions-menu",
             {
@@ -148,11 +164,17 @@ export function registerIsland(
 export function hydrate(): void {
     window.requestIdleCallback(async () => {
         const pinia = createPinia();
-        const storesMatrix = {
-            mainStore: useMainStore(pinia),
-            navigationStore: useNavigationStore(pinia),
-            vendorStore: useVendorStore(pinia),
+        // Stores are created lazily so that pages whose islands do not
+        // request them never pay for their state and watchers.
+        const storeFactories: Record<string, () => unknown> = {
+            mainStore: () => useMainStore(pinia),
+            navigationStore: () => useNavigationStore(pinia),
+            vendorStore: () => useVendorStore(pinia),
+            bookingStore: () => useBookingStore(pinia),
         };
+        const storeInstances: Record<string, unknown> = {};
+        const resolveStore = (name: string) =>
+            (storeInstances[name] ??= storeFactories[name]?.());
 
         const islandTagNames = Array.from(componentRegistry.keys()).join(", ");
         const requestedIslands = new Set(
@@ -191,7 +213,7 @@ export function hydrate(): void {
                             if (config.stores?.length > 0) {
                                 app.use(pinia);
                                 config.stores.forEach(store => {
-                                    app.provide(store, storesMatrix[store]);
+                                    app.provide(store, resolveStore(store));
                                 });
                             }
                             app.config.globalProperties.$__ = $__;

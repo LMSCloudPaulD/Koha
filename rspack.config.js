@@ -9,6 +9,11 @@ const islandsExport = application => {
             ? "intranet-tmpl/prog"
             : "opac-tmpl/bootstrap";
 
+    const bookingApiPath =
+        application === "intranet"
+            ? "koha-tmpl/intranet-tmpl/prog/js/vue/components/Bookings/lib/adapters/api/staff-interface.js"
+            : "koha-tmpl/intranet-tmpl/prog/js/vue/components/Bookings/lib/adapters/api/opac.js";
+
     return {
         resolve: {
             alias: {
@@ -20,6 +25,7 @@ const islandsExport = application => {
                     __dirname,
                     "koha-tmpl/intranet-tmpl/prog/js/vue"
                 ),
+                "@bookingApi": path.resolve(__dirname, bookingApiPath),
             },
         },
         experiments: {
@@ -100,6 +106,10 @@ module.exports = [
                 "@fetch": path.resolve(
                     __dirname,
                     "koha-tmpl/intranet-tmpl/prog/js/fetch"
+                ),
+                "@bookingApi": path.resolve(
+                    __dirname,
+                    "koha-tmpl/intranet-tmpl/prog/js/vue/components/Bookings/lib/adapters/api/staff-interface.js"
                 ),
                 "@koha-vue": path.resolve(
                     __dirname,
