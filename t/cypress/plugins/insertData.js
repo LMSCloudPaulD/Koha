@@ -158,6 +158,12 @@ const insertSampleBiblio = async ({
             in_bundle,
             cover_image_ids,
             localuse,
+            // Bug 17387 added deleted_on to the item read schema; not allowed
+            // on POST. TODO: separate bug should teach
+            // generateDataFromSchema in mockData.js to honor readOnly so this
+            // strip list stops growing every time a new server-set field is
+            // added to any read schema.
+            deleted_on,
             ...rest
         }) => rest
     );
@@ -507,6 +513,12 @@ const deleteSampleObjects = async allObjects => {
     }
 
     const objectsMap = {
+        booking: {
+            plural: "bookings",
+            table: "bookings",
+            whereColumn: "booking_id",
+            idField: "booking_id",
+        },
         hold: {
             plural: "holds",
             table: "reserves",
@@ -601,6 +613,7 @@ const deleteSampleObjects = async allObjects => {
     }
 
     const deletionOrder = [
+        "bookings",
         "holds",
         "checkouts",
         "old_checkouts",
