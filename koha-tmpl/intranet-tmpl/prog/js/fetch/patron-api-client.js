@@ -7,9 +7,20 @@ export class PatronAPIClient {
 
     get patrons() {
         return {
-            get: id =>
+            get: (id, headers) =>
                 this.httpClient.get({
                     endpoint: "patrons/" + id,
+                    headers,
+                }),
+            search: (query, params, headers) =>
+                this.httpClient.get({
+                    endpoint:
+                        "patrons?" +
+                        new URLSearchParams({
+                            ...(query && { q: JSON.stringify(query) }),
+                            ...params,
+                        }).toString(),
+                    headers,
                 }),
         };
     }
