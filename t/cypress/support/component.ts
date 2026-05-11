@@ -19,6 +19,42 @@
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
 
+// Mirror the globals normally provided by js-date-format.inc so Vue modules
+// that depend on `window.dayjs` (utils/dayjs.mjs and its consumers) load.
+import dayjsLib from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+
+dayjsLib.extend(utc);
+dayjsLib.extend(timezone);
+dayjsLib.extend(customParseFormat);
+window["dayjs"] = dayjsLib;
+window["dayjs_plugin_isSameOrBefore"] = isSameOrBefore;
+window["dayjs_plugin_isSameOrAfter"] = isSameOrAfter;
+
+// staff-global.js installs String.prototype.format on every Koha intranet
+// page; component bundles don't pull it in, so any component using the
+// $__("...").format(arg) idiom blows up at render time without this shim.
+if (typeof String.prototype.format !== "function") {
+    // Minimal subset of staff-global.js's formatstr — %s positional and
+    // %% literal — sufficient for $__ template strings.
+    String.prototype.format = function () {
+        const args = arguments;
+        let i = 0;
+        return String(this).replace(/%%|%s/g, m =>
+            m === "%%" ? "%" : (args[i++] ?? "")
+        );
+    };
+}
+
+// Apply the same console.warn/error/log hooks as e2e tests so component
+// tests catch the same class of init-time issues at the cheaper-to-debug
+// component layer.
+import "./console-hooks";
+
 import { mount } from "cypress/vue";
 import i18n from "@koha-vue/i18n";
 import { createWebHistory, createRouter } from "vue-router";
