@@ -183,15 +183,21 @@ export const APIClient = {
     article_request: createClientProxy(
         () => import("./article-request-api-client.js")
     ),
+    biblio: createClientProxy(() => import("./biblio-api-client.js")),
+    booking: createClientProxy(() => import("./booking-api-client.js")),
     authorised_values: createClientProxy(
         () => import("./authorised-values-api-client.js")
     ),
     acquisition: createClientProxy(() => import("./acquisition-api-client.js")),
     cataloguing: createClientProxy(() => import("./cataloguing-api-client.js")),
     circulation: createClientProxy(() => import("./circulation-api-client.js")),
+    circulation_rules: createClientProxy(
+        () => import("./circulation-rules-api-client.js")
+    ),
     club: createClientProxy(() => import("./club-api-client.js")),
     cover_image: createClientProxy(() => import("./cover-image-api-client.js")),
     ill: createClientProxy(() => import("./ill-api-client.js")),
+    library: createClientProxy(() => import("./library-api-client.js")),
     localization: createClientProxy(
         () => import("./localization-api-client.js")
     ),
