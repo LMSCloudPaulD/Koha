@@ -1,0 +1,293 @@
+/**
+ * bookingLogger.js - Debug logging utility for the booking system
+ *
+ * Provides configurable debug logging that can be enabled/disabled at runtime.
+ * Logs can be controlled via localStorage or global variables.
+ *
+ * ## Browser vs Node.js Environment
+ *
+ * This module uses several browser-specific APIs that behave differently in Node.js:
+ *
+ * | API              | Browser                      | Node.js (test env)           |
+ * |------------------|------------------------------|------------------------------|
+ * | localStorage     | Persists debug settings      | Not available, uses defaults |
+ * | console.group    | Creates collapsible groups   | Plain text output            |
+ * | console.time     | Performance timing           | Works (Node 8+)              |
+ * | performance.now  | High-res timing              | Works via perf_hooks         |
+ * | window           | Global browser object        | undefined or JSDOM mock      |
+ *
+ * The module initializes with logging DISABLED by default. In browsers, set
+ * `localStorage.setItem('koha.booking.debug', 'true')` or call
+ * `window.BookingDebug.enable()` to enable.
+ *
+ * In Node.js test environments, a simplified BookingDebug object is attached to
+ * globalThis.window if JSDOM creates one.
+ */
+
+class BookingLogger {
+    constructor(module) {
+        this.module = module;
+        this.enabled = false;
+        this.enabledLevels = new Set();
+        // Track active timers and groups to prevent console errors
+        this._activeTimers = new Set();
+        this._activeGroups = [];
+        // Initialize log buffer and timers in constructor
+        this._logBuffer = [];
+        this._timers = {};
+
+        // Check for debug configuration
+        if (typeof window !== "undefined" && window.localStorage) {
+            // Check localStorage first, then global variable
+            this.enabled =
+                window.localStorage.getItem("koha.booking.debug") === "true" ||
+                window["KOHA_BOOKING_DEBUG"] === true;
+
+            // Allow configuring specific log levels
+            const levels = window.localStorage.getItem(
+                "koha.booking.debug.levels"
+            );
+            if (levels) {
+                this.enabledLevels = new Set(levels.split(","));
+            }
+        }
+    }
+
+    /**
+     * Enable or disable debug logging
+     * @param {boolean} enabled
+     */
+    setEnabled(enabled) {
+        this.enabled = enabled;
+        if (enabled) {
+            // When enabling debug, include all levels
+            this.enabledLevels = new Set(["debug", "info", "warn", "error"]);
+        } else {
+            // When disabling, clear all levels
+            this.enabledLevels = new Set();
+        }
+        if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem(
+                "koha.booking.debug",
+                enabled.toString()
+            );
+        }
+    }
+
+    /**
+     * Set which log levels are enabled
+     * @param {string[]} levels - Array of level names (debug, info, warn, error)
+     */
+    setLevels(levels) {
+        this.enabledLevels = new Set(levels);
+        if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem(
+                "koha.booking.debug.levels",
+                levels.join(",")
+            );
+        }
+    }
+
+    /**
+     * Core logging method
+     * @param {string} level
+     * @param {string} message
+     * @param  {...unknown} args
+     */
+    log(level, message, ...args) {
+        if (!this.enabledLevels.has(level)) return;
+
+        const timestamp = new Date().toISOString();
+        const prefix = `[${timestamp}] [${
+            this.module
+        }] [${level.toUpperCase()}]`;
+
+        console[level](prefix, message, ...args);
+
+        this._logBuffer.push({
+            timestamp,
+            module: this.module,
+            level,
+            message,
+            args,
+        });
+
+        if (this._logBuffer.length > 1000) {
+            this._logBuffer = this._logBuffer.slice(-1000);
+        }
+    }
+
+    // Convenience methods
+    debug(message, ...args) {
+        this.log("debug", message, ...args);
+    }
+    info(message, ...args) {
+        this.log("info", message, ...args);
+    }
+    warn(message, ...args) {
+        this.log("warn", message, ...args);
+    }
+    error(message, ...args) {
+        this.log("error", message, ...args);
+    }
+
+    /**
+     * Performance timing utilities
+     */
+    time(label) {
+        if (!this.enabledLevels.has("debug")) return;
+        const key = `[${this.module}] ${label}`;
+        console.time(key);
+        this._activeTimers.add(label);
+        this._timers[label] = performance.now();
+    }
+
+    timeEnd(label) {
+        if (!this.enabledLevels.has("debug")) return;
+        // Only call console.timeEnd if we actually started this timer
+        if (!this._activeTimers.has(label)) return;
+
+        const key = `[${this.module}] ${label}`;
+        console.timeEnd(key);
+        this._activeTimers.delete(label);
+
+        // Also log the duration
+        if (this._timers[label]) {
+            const duration = performance.now() - this._timers[label];
+            this.debug(`${label} completed in ${duration.toFixed(2)}ms`);
+            delete this._timers[label];
+        }
+    }
+
+    /**
+     * Group related log entries
+     */
+    group(label) {
+        if (!this.enabledLevels.has("debug")) return;
+        console.group(`[${this.module}] ${label}`);
+        this._activeGroups.push(label);
+    }
+
+    groupEnd() {
+        if (!this.enabledLevels.has("debug")) return;
+        // Only call console.groupEnd if we have an active group
+        if (this._activeGroups.length === 0) return;
+
+        console.groupEnd();
+        this._activeGroups.pop();
+    }
+
+    /**
+     * Export logs for bug reports
+     */
+    exportLogs() {
+        return {
+            module: this.module,
+            enabled: this.enabled,
+            enabledLevels: Array.from(this.enabledLevels),
+            logs: this._logBuffer || [],
+        };
+    }
+
+    /**
+     * Clear log buffer
+     */
+    clearLogs() {
+        this._logBuffer = [];
+        this._activeTimers.clear();
+        this._activeGroups = [];
+    }
+}
+
+export const managerLogger = new BookingLogger("BookingManager");
+export const calendarLogger = new BookingLogger("BookingCalendar");
+
+// Expose debug utilities to browser console
+if (typeof window !== "undefined") {
+    const debugObj = {
+        // Enable/disable all booking debug logs
+        enable() {
+            managerLogger.setEnabled(true);
+            calendarLogger.setEnabled(true);
+            console.info("Booking debug logging enabled");
+        },
+
+        disable() {
+            managerLogger.setEnabled(false);
+            calendarLogger.setEnabled(false);
+            console.info("Booking debug logging disabled");
+        },
+
+        // Set specific log levels
+        setLevels(levels) {
+            managerLogger.setLevels(levels);
+            calendarLogger.setLevels(levels);
+            console.info(`Booking log levels set to: ${levels.join(", ")}`);
+        },
+
+        // Export all logs
+        exportLogs() {
+            return {
+                manager: managerLogger.exportLogs(),
+                calendar: calendarLogger.exportLogs(),
+            };
+        },
+
+        // Clear all logs
+        clearLogs() {
+            managerLogger.clearLogs();
+            calendarLogger.clearLogs();
+            console.info("Booking logs cleared");
+        },
+
+        // Get current status
+        status() {
+            return {
+                enabled: {
+                    manager: managerLogger.enabled,
+                    calendar: calendarLogger.enabled,
+                },
+                levels: {
+                    manager: Array.from(managerLogger.enabledLevels),
+                    calendar: Array.from(calendarLogger.enabledLevels),
+                },
+            };
+        },
+    };
+
+    // Set on browser window
+    window["BookingDebug"] = debugObj;
+
+    // Only log availability message if debug is already enabled
+    if (managerLogger.enabled || calendarLogger.enabled) {
+        console.info(
+            "Booking debug utilities available at window.BookingDebug"
+        );
+    }
+}
+
+// Additional setup for Node.js testing environment
+if (typeof globalThis !== "undefined" && typeof window === "undefined") {
+    // We're in Node.js - set up global.window if it exists
+    if (globalThis.window) {
+        const debugObj = {
+            enable: () => {
+                managerLogger.setEnabled(true);
+                calendarLogger.setEnabled(true);
+            },
+            disable: () => {
+                managerLogger.setEnabled(false);
+                calendarLogger.setEnabled(false);
+            },
+            exportLogs: () => ({
+                manager: managerLogger.exportLogs(),
+                calendar: calendarLogger.exportLogs(),
+            }),
+            status: () => ({
+                managerEnabled: managerLogger.enabled,
+                calendarEnabled: calendarLogger.enabled,
+            }),
+        };
+        globalThis.window["BookingDebug"] = debugObj;
+    }
+}
