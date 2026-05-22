@@ -157,12 +157,25 @@ export function registerIsland(
     componentRegistry.set(name, entry);
 }
 
+const scheduleIdle: (cb: IdleRequestCallback) => void =
+    typeof window.requestIdleCallback === "function"
+        ? window.requestIdleCallback.bind(window)
+        : cb =>
+              window.setTimeout(
+                  () =>
+                      cb({
+                          didTimeout: false,
+                          timeRemaining: () => 0,
+                      } as IdleDeadline),
+                  1
+              );
+
 /**
  * Hydrates custom elements by scanning the document and loading only necessary components.
  * @returns {void}
  */
 export function hydrate(): void {
-    window.requestIdleCallback(async () => {
+    scheduleIdle(async () => {
         const pinia = createPinia();
         // Stores are created lazily so that pages whose islands do not
         // request them never pay for their state and watchers.
