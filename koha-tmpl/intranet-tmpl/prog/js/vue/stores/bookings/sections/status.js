@@ -1,16 +1,14 @@
-import { ref, reactive } from "vue";
+import { reactive } from "vue";
 
 /**
  * Status section: async-operation tracking and UI-level error state.
  *
- * Owns `loading` and `error` maps keyed by the same operation name
- * (so each fetch/mutate action can flip both via `withErrorHandling`).
- * Owns `uiError` for validation messages surfaced in the modal that
- * are not tied to a specific async operation.
+ * Owns the `loading` map keyed by operation name (flipped per action via
+ * `withErrorHandling`). Owns `uiError` for messages surfaced in the modal;
+ * fetch/mutate failures propagate to callers, which set `uiError` via
+ * `processApiError`.
  */
 export function useStatusSection() {
-    const dataFetched = ref(false);
-
     const loading = reactive({
         bookableItems: false,
         bookings: false,
@@ -23,25 +21,7 @@ export function useStatusSection() {
         submit: false,
     });
 
-    const error = reactive({
-        bookableItems: null,
-        bookings: null,
-        checkouts: null,
-        patrons: null,
-        bookingPatron: null,
-        pickupLocations: null,
-        circulationRules: null,
-        holidays: null,
-        submit: null,
-    });
-
     const uiError = reactive({ message: "", code: null });
-
-    function resetErrors() {
-        Object.keys(error).forEach(key => {
-            error[key] = null;
-        });
-    }
 
     /**
      * @param {string} message - Error message to display
@@ -59,18 +39,16 @@ export function useStatusSection() {
         uiError.code = null;
     }
 
+    // Retained for callers that historically cleared per-operation and UI
+    // error state together; only `uiError` remains, so this clears it.
     function clearAllErrors() {
-        resetErrors();
         clearUiError();
     }
 
     return {
-        dataFetched,
         loading,
-        error,
         uiError,
 
-        resetErrors,
         setUiError,
         clearUiError,
         clearAllErrors,

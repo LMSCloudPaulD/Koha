@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import * as bookingApi from "@bookingApi";
 import {
     transformPatronData,
@@ -25,15 +25,9 @@ import { makeWithErrorHandling } from "../utils/withErrorHandling.js";
  *  - circulationRulesContext, holidaysFetchedRange — fetch-bookkeeping
  *    used to decide whether a refetch / range extension is needed.
  *
- * Getters:
- *  - effectiveCirculationRules — first rule or {} (the rules array is
- *    always shaped as a 0/1-element list per the API contract).
  */
 export function useDataSection({ status }) {
-    const withErrorHandling = makeWithErrorHandling(
-        status.loading,
-        status.error
-    );
+    const withErrorHandling = makeWithErrorHandling(status.loading);
 
     /** @type {import('vue').Ref<Array<import('@koha-vue/components/Bookings/types/bookings').BookableItem>>} */
     const bookableItems = ref([]);
@@ -57,10 +51,6 @@ export function useDataSection({ status }) {
         to: null,
         libraryId: null,
     });
-
-    const effectiveCirculationRules = computed(
-        () => circulationRules.value?.[0] || {}
-    );
 
     /**
      * Invalidate backend-calculated due values to avoid stale UI when
@@ -311,8 +301,6 @@ export function useDataSection({ status }) {
         circulationRulesContext,
         holidays,
         holidaysFetchedRange,
-
-        effectiveCirculationRules,
 
         invalidateCalculatedDue,
         fetchBookableItems,

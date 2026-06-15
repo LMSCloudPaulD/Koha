@@ -223,7 +223,6 @@ export function useValidationSection({ status, data, draft, availability }) {
         formPrefilterValid: formPrefilterValid.value,
         hasAvailableItems: hasAvailableItems.value,
         isCalendarReady: isCalendarReady.value,
-        canSubmit: isSubmitReady.value,
     }));
 
     // Clear any pending API/UI errors as soon as the user changes any
@@ -360,7 +359,6 @@ export function useValidationSection({ status, data, draft, availability }) {
         showItemDetailsSelects,
         showPickupLocationSelect,
 
-        canSubmit,
         hasPositiveCapacity,
         zeroCapacityMessage,
         showCapacityWarning,
