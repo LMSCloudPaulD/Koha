@@ -7,7 +7,6 @@
 
 import {
     calculateMaxEndDate,
-    validateBookingPeriod,
     validateLeadPeriodOptimized,
     validateTrailPeriodOptimized,
     validateRangeOverlapForEndDate,
@@ -55,39 +54,6 @@ describe("calculateMaxEndDate", () => {
         expect(() => calculateMaxEndDate(new Date(2026, 2, 20), -1)).to.throw(
             "maxPeriod must be a positive number"
         );
-    });
-});
-
-describe("validateBookingPeriod", () => {
-    it("returns true (valid) when there is no maxPeriod", () => {
-        expect(
-            validateBookingPeriod(
-                new Date(2026, 2, 20),
-                new Date(2027, 0, 1),
-                0
-            )
-        ).to.be.true;
-    });
-
-    it("returns true when end == start + (maxPeriod - 1)", () => {
-        // start=Mar 20, end=Mar 24, maxPeriod=5 → exactly at the limit.
-        expect(
-            validateBookingPeriod(
-                new Date(2026, 2, 20),
-                new Date(2026, 2, 24),
-                5
-            )
-        ).to.be.true;
-    });
-
-    it("returns false when end exceeds the calculated max", () => {
-        expect(
-            validateBookingPeriod(
-                new Date(2026, 2, 20),
-                new Date(2026, 2, 25),
-                5
-            )
-        ).to.be.false;
     });
 });
 

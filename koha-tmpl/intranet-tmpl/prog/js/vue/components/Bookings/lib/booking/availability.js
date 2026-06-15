@@ -18,11 +18,21 @@ export {
     extractBookingConfiguration,
     toEffectiveRules,
     calculateMaxBookingPeriod,
+} from "./availability/rules.js";
+
+export {
     calculateMaxEndDate,
     getAvailableItemsForPeriod,
+} from "./availability/period-validators.js";
+
+export {
     buildUnavailableByDateMap,
     addHolidayMarkers,
+} from "./availability/unavailable-map.js";
+
+export {
     calculateDisabledDates,
     buildIntervalTree,
-    findFirstBlockingDate,
-} from "./availability/index.js";
+} from "./availability/disabled-dates.js";
+
+export { findFirstBlockingDate } from "./availability/date-change.js";

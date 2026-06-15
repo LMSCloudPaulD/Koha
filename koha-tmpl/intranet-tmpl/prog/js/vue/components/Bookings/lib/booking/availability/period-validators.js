@@ -31,25 +31,6 @@ export function calculateMaxEndDate(startDate, maxPeriod) {
 }
 
 /**
- * Validates if an end date exceeds the maximum allowed period
- *
- * @param {Date|string|import('dayjs').Dayjs} startDate - The start date
- * @param {Date|string|import('dayjs').Dayjs} endDate - The proposed end date
- * @param {number} maxPeriod - Maximum period in days
- * @returns {boolean} True if end date is valid (within limits)
- */
-export function validateBookingPeriod(startDate, endDate, maxPeriod) {
-    if (!maxPeriod || maxPeriod <= 0) {
-        return true; // No limit
-    }
-
-    const maxEndDate = calculateMaxEndDate(startDate, maxPeriod);
-    const proposedEnd = BookingDate.from(endDate).toDayjs();
-
-    return !proposedEnd.isAfter(maxEndDate, "day");
-}
-
-/**
  * Optimized lead period validation using range queries instead of individual point queries
  * @param {import("dayjs").Dayjs} startDate - Potential start date to validate
  * @param {number} leadDays - Number of lead period days to check

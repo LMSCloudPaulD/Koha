@@ -1,45 +1,10 @@
 import { BookingDate } from "./BookingDate.js";
 import { calculateMaxEndDate } from "./availability.js";
-import {
-    CONSTRAINT_MODE_END_DATE_ONLY,
-    CONSTRAINT_MODE_NORMAL,
-} from "./constants.js";
+import { CONSTRAINT_MODE_END_DATE_ONLY } from "./constants.js";
 import {
     queryRangeAndResolve,
     createConflictContext,
 } from "./conflict-resolution.js";
-
-/**
- * Base strategy with shared logic for date-selection enforcement.
- * Mode-specific strategies override methods as needed.
- */
-const BaseStrategy = {
-    name: "base",
-
-    /**
-     * Validate if a start date should be blocked.
-     * @returns {boolean} true to block, false to allow
-     */
-    validateStartDateSelection() {
-        return false;
-    },
-
-    /**
-     * Handle intermediate dates between start and end.
-     * Base implementation has no special handling.
-     */
-    handleIntermediateDate() {
-        return null;
-    },
-
-    /**
-     * Enforce end date selection rules.
-     * Base implementation allows any end date.
-     */
-    enforceEndDateSelection() {
-        return { ok: true };
-    },
-};
 
 /**
  * Validate start date for end_date_only mode.
@@ -117,89 +82,51 @@ export function handleEndDateOnlyIntermediateDate(date, selectedDates, config) {
 }
 
 /**
- * Strategy for end_date_only constraint mode.
- * Users must select the exact end date calculated from start + period.
- */
-const EndDateOnlyStrategy = {
-    ...BaseStrategy,
-    name: CONSTRAINT_MODE_END_DATE_ONLY,
-
-    validateStartDateSelection(
-        dayjsDate,
-        config,
-        intervalTree,
-        selectedItem,
-        editBookingId,
-        allItemIds,
-        selectedDates
-    ) {
-        if (!selectedDates || selectedDates.length === 0) {
-            return validateEndDateOnlyStartDate(
-                dayjsDate,
-                config,
-                intervalTree,
-                selectedItem,
-                editBookingId,
-                allItemIds
-            );
-        }
-        return false;
-    },
-
-    handleIntermediateDate(dayjsDate, selectedDates, config) {
-        return handleEndDateOnlyIntermediateDate(
-            dayjsDate,
-            selectedDates,
-            config
-        );
-    },
-
-    enforceEndDateSelection(dayjsStart, dayjsEnd, circulationRules) {
-        if (!dayjsEnd) return { ok: true };
-
-        const dueStr = circulationRules?.calculated_due_date;
-        let targetEnd;
-        if (dueStr) {
-            const due = BookingDate.from(dueStr).toDayjs();
-            if (!due.isBefore(dayjsStart, "day")) {
-                targetEnd = due;
-            }
-        }
-        if (!targetEnd) {
-            const numericMaxPeriod =
-                Number(circulationRules?.maxPeriod) ||
-                Number(circulationRules?.issuelength) ||
-                0;
-            // Use calculateMaxEndDate for consistency: end = start + (maxPeriod - 1), as start is day 1
-            targetEnd = calculateMaxEndDate(
-                dayjsStart,
-                Math.max(1, numericMaxPeriod)
-            );
-        }
-        return {
-            ok: dayjsEnd.isSame(targetEnd, "day"),
-            expectedEnd: targetEnd,
-        };
-    },
-};
-
-/**
- * Strategy for normal constraint mode.
- * Users can select any valid date range within the max period.
- */
-const NormalStrategy = {
-    ...BaseStrategy,
-    name: CONSTRAINT_MODE_NORMAL,
-    // Uses all base implementations - no overrides needed
-};
-
-/**
- * Factory function to get the appropriate strategy for a constraint mode.
- * @param {string} mode - The constraint mode (CONSTRAINT_MODE_END_DATE_ONLY or CONSTRAINT_MODE_NORMAL)
- * @returns {Object} The strategy object
+ * Returns the date-selection handlers for a constraint mode.
+ *
+ * Normal mode imposes no extra start/intermediate restrictions — the
+ * disable function alone governs range selection. end_date_only mode forces
+ * the end date to start + period, so it validates the whole period up front
+ * and rejects clicks past the computed end.
+ *
+ * @param {string} mode - CONSTRAINT_MODE_END_DATE_ONLY or CONSTRAINT_MODE_NORMAL
  */
 export function createConstraintStrategy(mode) {
-    return mode === CONSTRAINT_MODE_END_DATE_ONLY
-        ? EndDateOnlyStrategy
-        : NormalStrategy;
+    const isEndDateOnly = mode === CONSTRAINT_MODE_END_DATE_ONLY;
+    return {
+        validateStartDateSelection(
+            dayjsDate,
+            config,
+            intervalTree,
+            selectedItem,
+            editBookingId,
+            allItemIds,
+            selectedDates
+        ) {
+            if (
+                isEndDateOnly &&
+                (!selectedDates || selectedDates.length === 0)
+            ) {
+                return validateEndDateOnlyStartDate(
+                    dayjsDate,
+                    config,
+                    intervalTree,
+                    selectedItem,
+                    editBookingId,
+                    allItemIds
+                );
+            }
+            return false;
+        },
+
+        handleIntermediateDate(dayjsDate, selectedDates, config) {
+            return isEndDateOnly
+                ? handleEndDateOnlyIntermediateDate(
+                      dayjsDate,
+                      selectedDates,
+                      config
+                  )
+                : null;
+        },
+    };
 }

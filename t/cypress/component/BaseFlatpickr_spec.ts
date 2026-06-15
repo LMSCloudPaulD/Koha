@@ -603,10 +603,10 @@ describe("BaseFlatpickr", () => {
         });
     });
 
-    // BookingPeriodStep drives autoNavigateEnd, clearDateRange, and the
-    // loanBoundaryTimes write through this exposed surface. Treat these
-    // as a contract: a refactor that hides any of these methods would
-    // silently break those callers.
+    // BookingPeriodStep drives clearDateRange and the loanBoundaryTimes
+    // write through this exposed surface. Treat these as a contract: a
+    // refactor that hides any of these methods would silently break those
+    // callers.
     describe("exposed API", () => {
         const PICKER_VIEWPORT = { year: 2026, month: 2 };
         const PickerHost = {

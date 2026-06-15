@@ -136,20 +136,11 @@ const props = withDefaults(
         calendarEnabled?: boolean;
         errorMessage?: string;
         hasSelectedDates?: boolean;
-        /**
-         * When true, after the user picks a start date the picker
-         * jumps to the month containing the maxBookingPeriod-derived
-         * end so the full constrained range is visible without
-         * manually advancing months. Off by default until we settle
-         * on the right UX.
-         */
-        autoNavigateEnd?: boolean;
     }>(),
     {
         calendarEnabled: true,
         errorMessage: "",
         hasSelectedDates: false,
-        autoNavigateEnd: false,
     }
 );
 
@@ -440,51 +431,6 @@ function onUpdateViewport(vp: { year: number; month: number }): void {
 function onSelectAttemptBlocked(p: { date: Date; reason: string }): void {
     if (p.reason) store.setUiError(p.reason, "blocked_date");
 }
-
-// Auto-navigate the picker viewport to the end of the constrained range
-// when the user just picked a start date (transition from no-anchor to
-// single-anchor). Off by default; opt-in via prop. Useful when the
-// rolling max-period crosses a month boundary and the highlighted tail
-// would otherwise be hidden until the user manually advances months.
-watch(
-    () => pickerModelValue.value,
-    (newVal, oldVal) => {
-        if (!props.autoNavigateEnd) return;
-        const wasUnset =
-            !Array.isArray(oldVal) || oldVal.length === 0 || oldVal[0] == null;
-        const isSingleAnchor =
-            Array.isArray(newVal) &&
-            newVal.length === 1 &&
-            newVal[0] instanceof Date;
-        if (!wasUnset || !isSingleAnchor) return;
-
-        const anchor = newVal[0] as Date;
-        const maxPeriod = maxBookingPeriod.value;
-        if (!maxPeriod || maxPeriod <= 0) return;
-
-        const targetEnd = new Date(anchor);
-        targetEnd.setDate(targetEnd.getDate() + maxPeriod);
-
-        const fp = pickerRef.value?.instance?.() as
-            | {
-                  changeMonth?: (delta: number, isOffset?: boolean) => void;
-                  changeYear?: (year: number) => void;
-                  currentMonth?: number;
-                  currentYear?: number;
-              }
-            | null
-            | undefined;
-        if (!fp) return;
-        const targetYear = targetEnd.getFullYear();
-        const targetMonth = targetEnd.getMonth();
-        if (fp.currentYear !== targetYear && fp.changeYear) {
-            fp.changeYear(targetYear);
-        }
-        if (fp.currentMonth !== targetMonth && fp.changeMonth) {
-            fp.changeMonth(targetMonth - (fp.currentMonth ?? 0), true);
-        }
-    }
-);
 
 // Push loan-boundary timestamps onto the flatpickr instance. Tests and any
 // legacy consumers read fp._loanBoundaryTimes directly; the corresponding
