@@ -231,57 +231,6 @@ describe("IntervalTree.queryRange (item-id filter)", () => {
     });
 });
 
-describe("IntervalTree.removeWhere", () => {
-    it("removes intervals matching the predicate and updates size", () => {
-        const tree = buildIntervalTree(
-            [
-                booking("1", "2026-03-15", "2026-03-17"),
-                booking("2", "2026-03-15", "2026-03-17", { booking_id: 2 }),
-            ],
-            [],
-            {}
-        );
-        const removed = tree.removeWhere(iv => iv.itemId === "1");
-        expect(removed).to.equal(1);
-        expect(tree.size).to.equal(1);
-        const hits = tree.queryRange(day(2026, 2, 15), day(2026, 2, 17));
-        expect(hits.map(h => h.itemId)).to.deep.equal(["2"]);
-    });
-
-    it("removes correctly when many intervals share the same start date", () => {
-        // Equal start keys are common (several items booked from the same
-        // day). Rotations may place equal-start peers in either subtree,
-        // so removal must search both sides and size must only decrement
-        // for nodes actually deleted. Regression test for the strict
-        // rotation discriminator + right-only removal descent.
-        const tree = buildIntervalTree(
-            [
-                booking("A", "2026-03-15", "2026-03-17", { booking_id: 1 }),
-                booking("B", "2026-03-15", "2026-03-18", { booking_id: 2 }),
-                booking("C", "2026-03-15", "2026-03-19", { booking_id: 3 }),
-                booking("D", "2026-03-15", "2026-03-20", { booking_id: 4 }),
-                booking("E", "2026-03-15", "2026-03-21", { booking_id: 5 }),
-            ],
-            [],
-            {}
-        );
-        const sizeBefore = tree.size;
-
-        const removed = tree.removeWhere(iv => iv.itemId === "A");
-        expect(removed).to.be.greaterThan(0);
-        expect(tree.size).to.equal(sizeBefore - removed);
-
-        // The removed item must be gone from query results...
-        const hits = tree.queryRange(day(2026, 2, 15), day(2026, 2, 21));
-        expect(hits.map(h => h.itemId)).to.not.include("A");
-        // ...while every other item remains findable.
-        const remaining = new Set(hits.map(h => h.itemId));
-        ["B", "C", "D", "E"].forEach(id => {
-            expect(remaining.has(id), `item ${id} still in tree`).to.be.true;
-        });
-    });
-});
-
 describe("BookingInterval constructor", () => {
     it("throws when start is after end", () => {
         expect(() => {

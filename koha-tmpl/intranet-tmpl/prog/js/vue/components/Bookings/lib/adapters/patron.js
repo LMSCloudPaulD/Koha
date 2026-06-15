@@ -16,7 +16,6 @@
  */
 
 import { win } from "./globals.js";
-import { managerLogger as logger } from "../booking/logger.js";
 /**
  * Builds a search query for patron searches
  * This is a wrapper around the global buildPatronSearchQuery function
@@ -39,7 +38,7 @@ export function buildPatronSearchQuery(term, options = {}) {
     }
 
     // Fallback implementation if the global function is not available
-    logger.warn(
+    console.warn(
         "window.buildPatronSearchQuery is not available, using fallback implementation"
     );
     const q = [];

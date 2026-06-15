@@ -7,7 +7,6 @@
  */
 
 import { BookingDate } from "../BookingDate.js";
-import { managerLogger as logger } from "../logger.js";
 
 /**
  * Represents a booking or checkout interval.
@@ -117,8 +116,6 @@ export class IntervalTree {
         this.root = null;
         /** @type {number} Number of intervals in the tree */
         this.size = 0;
-        /** @type {boolean} Whether the last _removeNode pass deleted a node */
-        this._removeFound = false;
     }
 
     /**
@@ -163,7 +160,7 @@ export class IntervalTree {
      */
     _rotateRight(y) {
         if (!y || !y.left) {
-            logger.error("Invalid rotation: y or y.left is null", {
+            console.error("Invalid rotation: y or y.left is null", {
                 y: y?.interval?.toString(),
             });
             return y;
@@ -190,7 +187,7 @@ export class IntervalTree {
      */
     _rotateLeft(x) {
         if (!x || !x.right) {
-            logger.error("Invalid rotation: x or x.right is null", {
+            console.error("Invalid rotation: x or x.right is null", {
                 x: x?.interval?.toString(),
             });
             return x;
@@ -358,111 +355,6 @@ export class IntervalTree {
             this._queryRangeNode(node.right, queryInterval, results, itemId);
         }
     }
-
-    /**
-     * Remove all intervals matching a predicate
-     * @param {Function} predicate - Function that returns true for intervals to remove
-     * @returns {number} Number of intervals removed
-     */
-    removeWhere(predicate) {
-        const toRemove = [];
-        this._collectNodes(this.root, node => {
-            if (predicate(node.interval)) {
-                toRemove.push(node.interval);
-            }
-        });
-
-        toRemove.forEach(interval => {
-            this._removeFound = false;
-            this.root = this._removeNode(this.root, interval);
-            if (this._removeFound) {
-                this.size--;
-            }
-        });
-
-        return toRemove.length;
-    }
-
-    /**
-     * @param {IntervalTreeNode} node
-     * @param {Function} callback
-     * @private
-     */
-    _collectNodes(node, callback) {
-        if (!node) return;
-        this._collectNodes(node.left, callback);
-        callback(node);
-        this._collectNodes(node.right, callback);
-    }
-
-    /**
-     * Remove a specific interval. Does not rebalance.
-     *
-     * @param {IntervalTreeNode} node
-     * @param {BookingInterval} interval
-     * @returns {IntervalTreeNode}
-     * @private
-     */
-    _removeNode(node, interval) {
-        if (!node) return null;
-
-        if (interval.start < node.interval.start) {
-            node.left = this._removeNode(node.left, interval);
-        } else if (interval.start > node.interval.start) {
-            node.right = this._removeNode(node.right, interval);
-        } else if (
-            interval.end === node.interval.end &&
-            interval.itemId === node.interval.itemId &&
-            interval.type === node.interval.type
-        ) {
-            this._removeFound = true;
-            if (!node.left) return node.right;
-            if (!node.right) return node.left;
-
-            let minNode = node.right;
-            while (minNode.left) {
-                minNode = minNode.left;
-            }
-
-            node.interval = minNode.interval;
-            node.right = this._removeNode(node.right, minNode.interval);
-        } else {
-            // Equal start but different identity: rotations can place
-            // equal-start peers in either subtree, so search both sides
-            // (right first — inserts route equal keys right).
-            node.right = this._removeNode(node.right, interval);
-            if (!this._removeFound) {
-                node.left = this._removeNode(node.left, interval);
-            }
-        }
-
-        if (node) {
-            this._updateHeight(node);
-            node.updateMax();
-        }
-
-        return node;
-    }
-
-    /**
-     * Clear all intervals
-     */
-    clear() {
-        this.root = null;
-        this.size = 0;
-    }
-
-    /**
-     * Get statistics about the tree for debugging and monitoring
-     * @returns {Object} Statistics object
-     */
-    getStats() {
-        return {
-            size: this.size,
-            height: this._getHeight(this.root),
-            balanced: Math.abs(this._getBalance(this.root)) <= 1,
-        };
-    }
 }
 
 /**
@@ -478,7 +370,7 @@ export function buildIntervalTree(bookings, checkouts, circulationRules) {
     bookings.forEach(booking => {
         try {
             if (!booking.item_id || !booking.start_date || !booking.end_date) {
-                logger.warn("Skipping invalid booking", { booking });
+                console.warn("Skipping invalid booking", { booking });
                 return;
             }
 
@@ -521,7 +413,7 @@ export function buildIntervalTree(bookings, checkouts, circulationRules) {
                 tree.insert(trailInterval);
             }
         } catch (error) {
-            logger.error("Failed to insert booking interval", {
+            console.error("Failed to insert booking interval", {
                 booking,
                 error,
             });
@@ -548,7 +440,7 @@ export function buildIntervalTree(bookings, checkouts, circulationRules) {
                 tree.insert(checkoutInterval);
             }
         } catch (error) {
-            logger.error("Failed to insert checkout interval", {
+            console.error("Failed to insert checkout interval", {
                 checkout,
                 error,
             });

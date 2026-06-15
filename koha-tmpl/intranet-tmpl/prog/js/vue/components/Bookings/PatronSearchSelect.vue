@@ -49,7 +49,6 @@ import { useBookingStore } from "../../stores/bookings";
 import { storeToRefs } from "pinia";
 import { debounce } from "../../utils/functions.js";
 import { PATRON_SEARCH_DEBOUNCE_MS } from "./lib/booking/constants.js";
-import { managerLogger } from "./lib/booking/logger.js";
 import { $__ } from "../../i18n";
 import type { PatronOption } from "./types/bookings";
 
@@ -96,11 +95,7 @@ const onPatronSearch = async (search: string): Promise<void> => {
         try {
             store.setUiError(msg, "api");
         } catch (e) {
-            managerLogger.warn(
-                "PatronSearchSelect",
-                "Failed to set error in store",
-                e
-            );
+            console.warn("PatronSearchSelect: Failed to set error in store", e);
         }
         patronOptions.value = [];
     }
