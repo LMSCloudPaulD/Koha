@@ -66,7 +66,7 @@ function mountStep(storeSeed = {}, props = {}) {
 // be open. Picker interaction (range commit, hover-trail/lead, hover
 // feedback, auto-navigate-end) is exercised by the integration specs at
 // t/cypress/integration/Circulation/bookingsModal*_spec.ts; the
-// underlying primitives (BaseFlatpickr, useBookingCalendarMaps) have
+// underlying primitives (BookingFlatpickr, useBookingCalendarMaps) have
 // dedicated component specs.
 
 describe("BookingPeriodStep — constraint info alert", () => {

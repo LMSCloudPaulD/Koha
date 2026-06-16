@@ -1,14 +1,14 @@
-import BaseFlatpickr from "@koha-vue/components/BaseFlatpickr.vue";
+import BookingFlatpickr from "@koha-vue/components/Bookings/BookingFlatpickr.vue";
 import { ref } from "vue";
 
 const MARCH_2026 = { year: 2026, month: 2 };
 
 const day = label => cy.get(`.flatpickr-day[aria-label="${label}"]`);
 
-describe("BaseFlatpickr", () => {
+describe("BookingFlatpickr", () => {
     describe("single mode", () => {
         it("renders an input and an inline calendar", () => {
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -21,7 +21,7 @@ describe("BaseFlatpickr", () => {
 
         it("emits update:modelValue when a day is clicked", () => {
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -39,7 +39,7 @@ describe("BaseFlatpickr", () => {
         it("transitions idle → picking-end → committed across two clicks", () => {
             const onState = cy.stub().as("onState");
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -59,7 +59,7 @@ describe("BaseFlatpickr", () => {
         it("treats external [a, b] write as committed without re-emitting", () => {
             const onUpdate = cy.stub().as("onUpdate");
             const onState = cy.stub().as("onState");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -78,7 +78,7 @@ describe("BaseFlatpickr", () => {
 
         it("returns to idle when externally cleared", () => {
             const onState = cy.stub().as("onState");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -99,7 +99,7 @@ describe("BaseFlatpickr", () => {
     describe("end-date-only mode (fixed anchor)", () => {
         it("starts in picking-end with anchor visible as selected", () => {
             const onState = cy.stub().as("onState");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -118,7 +118,7 @@ describe("BaseFlatpickr", () => {
                 ["2026-03-12", { reason: "Holiday", severity: "soft" }],
             ]);
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -139,7 +139,7 @@ describe("BaseFlatpickr", () => {
 
         it("blocks click before the fixed anchor via minDate", () => {
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -161,7 +161,7 @@ describe("BaseFlatpickr", () => {
                 .stub()
                 .returns({ status: "valid" })
                 .as("previewFn");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -189,7 +189,7 @@ describe("BaseFlatpickr", () => {
                 message: hover.getDate() > 13 ? "long booking" : undefined,
             });
             const onPreview = cy.stub().as("onPreview");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -208,7 +208,7 @@ describe("BaseFlatpickr", () => {
 
         it("includes the hovered day element on the day-hover payload", () => {
             const onHover = cy.stub().as("onHover");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -224,7 +224,7 @@ describe("BaseFlatpickr", () => {
         });
 
         it("applies updated classByDate on prop change without losing anchor", () => {
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -260,7 +260,7 @@ describe("BaseFlatpickr", () => {
         };
 
         const HostHighlighter = {
-            components: { BaseFlatpickr },
+            components: { BookingFlatpickr },
             data() {
                 return {
                     modelValue: null,
@@ -281,7 +281,7 @@ describe("BaseFlatpickr", () => {
                 },
             },
             template: `
-                <BaseFlatpickr
+                <BookingFlatpickr
                     mode="range"
                     inline
                     :viewport="{ year: 2026, month: 2 }"
@@ -296,7 +296,7 @@ describe("BaseFlatpickr", () => {
 
         it("emits range-state-change with the anchor on transition to picking-end", () => {
             const onState = cy.stub().as("onState");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -327,7 +327,7 @@ describe("BaseFlatpickr", () => {
                 ["2026-03-15", { reason: "Closed", severity: "hard" }],
             ]);
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -344,7 +344,7 @@ describe("BaseFlatpickr", () => {
 
         it("treats specs without explicit severity as hard", () => {
             const disabled = new Map([["2026-03-15", { reason: "Closed" }]]);
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -361,7 +361,7 @@ describe("BaseFlatpickr", () => {
                 d.getDate() === 15
                     ? { reason: "Mid-month closed", severity: "hard" }
                     : null;
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -383,7 +383,7 @@ describe("BaseFlatpickr", () => {
             const disabled = new Map([
                 ["2026-03-15", { reason: "Holiday", severity: "soft" }],
             ]);
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -393,7 +393,7 @@ describe("BaseFlatpickr", () => {
                 },
             });
             day("March 15, 2026")
-                .should("have.class", "base-fp-soft-disabled")
+                .should("have.class", "booking-fp-soft-disabled")
                 .should("not.have.class", "flatpickr-disabled");
         });
 
@@ -403,7 +403,7 @@ describe("BaseFlatpickr", () => {
             ]);
             const onBlocked = cy.stub().as("onBlocked");
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -424,7 +424,7 @@ describe("BaseFlatpickr", () => {
                 ["2026-03-12", { reason: "Holiday", severity: "soft" }],
             ]);
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "range",
                     inline: true,
@@ -454,7 +454,7 @@ describe("BaseFlatpickr", () => {
                     ],
                 ],
             ]);
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -466,7 +466,9 @@ describe("BaseFlatpickr", () => {
             day("March 15, 2026")
                 .should("have.class", "test-marker")
                 .should("have.attr", "title", "Test marker");
-            day("March 15, 2026").find(".base-fp-marker-badge").should("exist");
+            day("March 15, 2026")
+                .find(".booking-fp-marker-badge")
+                .should("exist");
         });
 
         it("delegates to a custom markerRenderer and suppresses the default badge", () => {
@@ -482,7 +484,7 @@ describe("BaseFlatpickr", () => {
                     ],
                 ],
             ]);
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -508,7 +510,7 @@ describe("BaseFlatpickr", () => {
             // BookingPeriodStep relies on this: a custom renderer takes over
             // and the generic dot badge should not be emitted.
             day("March 15, 2026")
-                .find(".base-fp-marker-badge")
+                .find(".booking-fp-marker-badge")
                 .should("not.exist");
         });
     });
@@ -519,7 +521,7 @@ describe("BaseFlatpickr", () => {
         // break that wiring. Pin the contract here.
         it("emits an object with instance, inputElement, and altInputElement", () => {
             const onReady = cy.stub().as("onReady");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -543,7 +545,7 @@ describe("BaseFlatpickr", () => {
     describe("classByDate", () => {
         it("applies multiple custom classes to the day cell", () => {
             const classByDate = new Map([["2026-03-15", "custom-a custom-b"]]);
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -561,7 +563,7 @@ describe("BaseFlatpickr", () => {
     describe("external value", () => {
         it("does not emit update:modelValue when initialized from props", () => {
             const onUpdate = cy.stub().as("onUpdate");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -578,7 +580,7 @@ describe("BaseFlatpickr", () => {
     describe("viewport", () => {
         it("emits update:viewport when navigating months", () => {
             const onViewport = cy.stub().as("onViewport");
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -591,7 +593,7 @@ describe("BaseFlatpickr", () => {
         });
 
         it("navigates to the viewport prop when set on mount", () => {
-            cy.mount(BaseFlatpickr, {
+            cy.mount(BookingFlatpickr, {
                 props: {
                     mode: "single",
                     inline: true,
@@ -610,14 +612,14 @@ describe("BaseFlatpickr", () => {
     describe("exposed API", () => {
         const PICKER_VIEWPORT = { year: 2026, month: 2 };
         const PickerHost = {
-            components: { BaseFlatpickr },
+            components: { BookingFlatpickr },
             props: ["modelValue", "mode"],
             setup() {
                 const picker = ref(null);
                 return { picker, viewport: PICKER_VIEWPORT };
             },
             template: `
-                <BaseFlatpickr
+                <BookingFlatpickr
                     ref="picker"
                     :mode="mode || 'single'"
                     :inline="true"

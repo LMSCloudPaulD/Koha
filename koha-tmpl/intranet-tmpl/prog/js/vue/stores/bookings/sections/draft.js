@@ -84,7 +84,7 @@ export function useDraftSection() {
 
     /**
      * Write a Date-shaped picker value back into the store as the
-     * canonical ISO[] form. Accepts the full BaseFlatpickr emit shape
+     * canonical ISO[] form. Accepts the full BookingFlatpickr emit shape
      * (Date | [Date, Date] | Date[] | null) and enforces the
      * [a] / [a, b] / [] invariant on `selectedDateRange`.
      *

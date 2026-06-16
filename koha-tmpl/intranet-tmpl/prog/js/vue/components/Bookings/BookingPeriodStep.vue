@@ -8,7 +8,7 @@
         <div class="form-group">
             <label for="booking_period">{{ $__("Booking period") }}</label>
             <div class="booking-date-picker">
-                <BaseFlatpickr
+                <BookingFlatpickr
                     ref="pickerRef"
                     mode="range"
                     :model-value="pickerModelValue"
@@ -104,7 +104,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import KohaAlert from "../KohaAlert.vue";
-import BaseFlatpickr from "../BaseFlatpickr.vue";
+import BookingFlatpickr from "./BookingFlatpickr.vue";
 import BookingTooltip from "./BookingTooltip.vue";
 import { useBookingStore } from "../../stores/bookings";
 import { storeToRefs } from "pinia";
@@ -214,7 +214,7 @@ const initialViewport = computed(() => {
     return undefined;
 });
 
-// BaseFlatpickr accepts a (Date) => DisabledSpec | null function for `:disabled`.
+// BookingFlatpickr accepts a (Date) => DisabledSpec | null function for `:disabled`.
 // disabledFn carries the full validation logic (past dates, lead/trail,
 // range overlap) but its boolean output loses severity. disabledByDate
 // is a Map<YMD, DisabledSpec> that flags holidays as soft when an anchor
@@ -233,7 +233,7 @@ const composedDisabled = computed(() => {
 });
 
 // Marker DOM rendering is booking-domain-specific (the .booking-marker-grid
-// container with per-type dot/count children); BaseFlatpickr stays generic
+// container with per-type dot/count children); BookingFlatpickr stays generic
 // and delegates to this consumer-provided renderer.
 function renderBookingMarkers(
     dayElem: HTMLElement,
@@ -482,7 +482,7 @@ const clearDateRange = (): void => {
     align-items: center;
 }
 
-:deep(.base-flatpickr-wrapper) {
+:deep(.booking-flatpickr-wrapper) {
     flex: 1;
     margin-right: var(--booking-space-md);
 }

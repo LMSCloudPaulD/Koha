@@ -1,15 +1,15 @@
-import BaseFlatpickr from "@koha-vue/components/BaseFlatpickr.vue";
+import BookingFlatpickr from "@koha-vue/components/Bookings/BookingFlatpickr.vue";
 import { useBookingCalendarMaps } from "@koha-vue/components/Bookings/composables/useBookingCalendarMaps.js";
 import { computed, toRefs } from "vue";
 
 // This spec tests the composable's contract directly: given input refs,
 // it returns Maps + computeds + a function. Most tests inspect those
-// outputs via wrapper.vm without mounting BaseFlatpickr or flatpickr.
-// Cross-checks against BaseFlatpickr's DOM behavior live in
-// BaseFlatpickr_spec; algorithmic correctness of the underlying
+// outputs via wrapper.vm without mounting BookingFlatpickr or flatpickr.
+// Cross-checks against BookingFlatpickr's DOM behavior live in
+// BookingFlatpickr_spec; algorithmic correctness of the underlying
 // availability/* helpers lives in t/cypress/component/lib/booking/*.
 // The remaining DOM smoke tests at the bottom of this file verify that
-// the composable's outputs still slot into BaseFlatpickr cleanly.
+// the composable's outputs still slot into BookingFlatpickr cleanly.
 
 const MARCH_2026 = { year: 2026, month: 2 };
 
@@ -26,7 +26,7 @@ const item = id => ({
 
 // Renderless host that wires the composable the same way production does
 // (rangeAnchor + selectedDateRange derived from modelValue) and exposes
-// every output for direct inspection. No BaseFlatpickr, no flatpickr.
+// every output for direct inspection. No BookingFlatpickr, no flatpickr.
 const ComposableHost = {
     props: [
         "bookableItems",
@@ -63,11 +63,11 @@ const ComposableHost = {
     template: `<div data-cy="composable-host" />`,
 };
 
-// DOM smoke harness: mounts BaseFlatpickr with the composable's outputs
+// DOM smoke harness: mounts BookingFlatpickr with the composable's outputs
 // wired in. Used only by the bottom-of-file smoke describe to confirm the
 // composable's Maps still slot into the picker's prop contract.
 const RangeHostWithPicker = {
-    components: { BaseFlatpickr },
+    components: { BookingFlatpickr },
     props: [
         "bookableItems",
         "bookings",
@@ -107,7 +107,7 @@ const RangeHostWithPicker = {
         };
     },
     template: `
-        <BaseFlatpickr
+        <BookingFlatpickr
             mode="range"
             inline
             :viewport="viewport"
@@ -852,7 +852,7 @@ describe("useBookingCalendarMaps (end-date-only mode)", () => {
     });
 });
 
-// Smoke tests: the composable's outputs should still slot into BaseFlatpickr
+// Smoke tests: the composable's outputs should still slot into BookingFlatpickr
 // cleanly. These mount the picker and assert on rendered classes — one per
 // output type — to catch contract drift between the composable and the
 // wrapper without re-testing the per-case logic above.

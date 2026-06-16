@@ -1,6 +1,6 @@
 /**
  * Translate booking domain state into the Maps and functions that
- * BaseFlatpickr consumes: disabledFn, disabledByDate, markersByDate,
+ * BookingFlatpickr consumes: disabledFn, disabledByDate, markersByDate,
  * classByDate, rangePreviewFn, loanBoundaryTimes.
  *
  * @module composables/useBookingCalendarMaps

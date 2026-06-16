@@ -1,5 +1,5 @@
 <template>
-    <div class="base-flatpickr-wrapper" :class="{ 'is-inline': inline }">
+    <div class="booking-flatpickr-wrapper" :class="{ 'is-inline': inline }">
         <input
             ref="inputRef"
             :id="inputId || undefined"
@@ -13,7 +13,7 @@
         <button
             v-if="clearable && hasValue && !inline"
             type="button"
-            class="base-flatpickr-clear"
+            class="booking-flatpickr-clear"
             :aria-label="$__ ? $__('Clear date') : 'Clear date'"
             @click.prevent="clear"
         >
@@ -269,8 +269,11 @@ function onDayCreate(
 
     const soft = isSoftDisabled(date);
     if (soft) {
-        dayElem.classList.add("base-fp-soft-disabled");
-        dayElem.setAttribute("data-base-fp-disabled-reason", soft.reason || "");
+        dayElem.classList.add("booking-fp-soft-disabled");
+        dayElem.setAttribute(
+            "data-booking-fp-disabled-reason",
+            soft.reason || ""
+        );
         // flatpickr binds `click` on daysContainer to run selectDate. A
         // capture-phase listener on the day itself runs first and blocks
         // it, preserving the day's enabled-for-range-validation status.
@@ -310,7 +313,7 @@ function onDayCreate(
             props.markerRenderer(dayElem as HTMLElement, markers, date);
         } else {
             const badge = document.createElement("span");
-            badge.className = "base-fp-marker-badge";
+            badge.className = "booking-fp-marker-badge";
             badge.setAttribute("aria-hidden", "true");
             dayElem.appendChild(badge);
         }
@@ -632,14 +635,14 @@ watch(
 </script>
 
 <style>
-.base-flatpickr-wrapper {
+.booking-flatpickr-wrapper {
     position: relative;
     display: inline-block;
 }
-.base-flatpickr-wrapper.is-inline {
+.booking-flatpickr-wrapper.is-inline {
     display: block;
 }
-.base-flatpickr-wrapper .base-flatpickr-clear {
+.booking-flatpickr-wrapper .booking-flatpickr-clear {
     background: none;
     border: none;
     cursor: pointer;
@@ -649,21 +652,21 @@ watch(
     color: inherit;
     opacity: 0.6;
 }
-.base-flatpickr-wrapper .base-flatpickr-clear:hover,
-.base-flatpickr-wrapper .base-flatpickr-clear:focus {
+.booking-flatpickr-wrapper .booking-flatpickr-clear:hover,
+.booking-flatpickr-wrapper .booking-flatpickr-clear:focus {
     opacity: 1;
 }
-.flatpickr-day.base-fp-soft-disabled {
+.flatpickr-day.booking-fp-soft-disabled {
     opacity: 0.55;
     text-decoration: line-through;
     cursor: not-allowed;
 }
-.flatpickr-day .base-fp-marker-badge {
+.flatpickr-day .booking-fp-marker-badge {
     display: inline-block;
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: var(--base-fp-marker-color, currentColor);
+    background: var(--booking-fp-marker-color, currentColor);
     position: absolute;
     bottom: 2px;
     left: 50%;
