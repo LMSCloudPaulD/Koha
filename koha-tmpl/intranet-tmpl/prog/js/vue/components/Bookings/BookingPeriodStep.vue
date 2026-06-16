@@ -108,7 +108,7 @@ import BookingFlatpickr from "./BookingFlatpickr.vue";
 import BookingTooltip from "./BookingTooltip.vue";
 import { useBookingStore } from "../../stores/bookings";
 import { storeToRefs } from "pinia";
-import { $__ } from "../../i18n";
+import { $__ } from "@koha-vue/i18n";
 import { debounce } from "../../utils/functions.js";
 import {
     HOLIDAY_EXTENSION_DEBOUNCE_MS,

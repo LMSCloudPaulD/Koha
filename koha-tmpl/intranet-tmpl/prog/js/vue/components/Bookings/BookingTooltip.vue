@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { $__ } from "../../i18n";
+import { $__ } from "@koha-vue/i18n";
 import { getMarkerTypeLabel } from "./lib/ui/marker-labels.js";
 import type { CalendarMarker } from "./types/bookings";
 

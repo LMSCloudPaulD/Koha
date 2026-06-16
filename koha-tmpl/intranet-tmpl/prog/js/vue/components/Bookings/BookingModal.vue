@@ -107,7 +107,7 @@ import {
 import BookingPatronStep from "./BookingPatronStep.vue";
 import BookingDetailsStep from "./BookingDetailsStep.vue";
 import BookingPeriodStep from "./BookingPeriodStep.vue";
-import { $__ } from "../../i18n";
+import { $__ } from "@koha-vue/i18n";
 import { processApiError } from "../../utils/apiErrors.js";
 import { storeToRefs } from "pinia";
 import { useBookingStore } from "../../stores/bookings";

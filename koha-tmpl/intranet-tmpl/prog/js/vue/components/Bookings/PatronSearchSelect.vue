@@ -49,7 +49,7 @@ import { useBookingStore } from "../../stores/bookings";
 import { storeToRefs } from "pinia";
 import { debounce } from "../../utils/functions.js";
 import { PATRON_SEARCH_DEBOUNCE_MS } from "./lib/booking/constants.js";
-import { $__ } from "../../i18n";
+import { $__ } from "@koha-vue/i18n";
 import type { PatronOption } from "./types/bookings";
 
 const props = withDefaults(
